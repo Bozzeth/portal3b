@@ -48,7 +48,13 @@ function DashboardContent() {
         padding: '20px 0'
       }}>
         <div className="container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="dashboard-header" style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
             <div>
               <div style={{ 
                 background: 'linear-gradient(90deg, #DC2626 0%, #FCD34D 100%)',
@@ -65,13 +71,19 @@ function DashboardContent() {
               </p>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div className="user-info" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '16px',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end'
+            }}>
               {user && (
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontWeight: '500', margin: '0' }}>
+                  <p style={{ fontWeight: '500', margin: '0', fontSize: '14px' }}>
                     {(user && (user.signInDetails?.loginId || user.username || user.userId)) || 'Authenticated User'}
                   </p>
-                  <p style={{ fontSize: '14px', color: 'var(--muted-foreground)', margin: '0' }}>
+                  <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0' }}>
                     Authenticated
                   </p>
                 </div>
@@ -108,7 +120,12 @@ function DashboardContent() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+            gap: '20px',
+            marginBottom: '40px'
+          }}>
             {/* Services Cards */}
             {[
               {

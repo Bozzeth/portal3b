@@ -178,6 +178,129 @@ body {
   padding: 0 20px;
 }
 
+/* Touch and mobile optimizations */
+button, a, input {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Ensure minimum touch target size */
+button, a[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Mobile First Responsive Design */
+@media (max-width: 640px) {
+  .container {
+    padding: 0 16px;
+  }
+  
+  /* Stack buttons vertically on mobile */
+  .hero-buttons {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    max-width: 100% !important;
+  }
+  
+  .hero-buttons > * {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: auto !important;
+  }
+  
+  /* Smaller text on mobile */
+  h1 {
+    font-size: clamp(28px, 8vw, 48px) !important;
+  }
+  
+  h2 {
+    font-size: clamp(20px, 6vw, 28px) !important;
+  }
+  
+  /* Card adjustments */
+  .card {
+    padding: 20px !important;
+  }
+  
+  /* Dashboard header stack on mobile */
+  .dashboard-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+  
+  .dashboard-header .user-info {
+    align-self: flex-end !important;
+  }
+  
+  /* Modal improvements for mobile */
+  .sevis-modal {
+    padding: 12px !important;
+  }
+  
+  .sevis-modal > div {
+    padding: 24px !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+  
+  /* Theme toggle positioning */
+  .theme-toggle {
+    top: 12px !important;
+    right: 12px !important;
+  }
+  
+  /* Feature cards mobile optimization */
+  .hero-section .container > div:last-child {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    max-width: 100% !important;
+  }
+  
+  /* Make feature cards smaller on mobile */
+  .hero-section .container > div:last-child > div {
+    padding: 16px 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 12px;
+  }
+  
+  /* Even smaller spacing on very small screens */
+  .hero-section {
+    padding: 20px 0 !important;
+    min-height: calc(100vh - 40px) !important;
+  }
+  
+  .hero-section .container {
+    padding: 20px 12px !important;
+  }
+  
+  .stats-section {
+    padding: 40px 0 !important;
+  }
+  
+  /* Reduce text spacing on small screens */
+  .hero-section h1 {
+    margin-bottom: 12px !important;
+  }
+  
+  .hero-section p {
+    margin-bottom: 8px !important;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container {
+    padding: 0 24px;
+  }
+}
+
 a {
   color: var(--primary);
   text-decoration: none;
