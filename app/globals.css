@@ -1,31 +1,40 @@
 :root {
-  --max-width: 1100px;
-  --border-radius: 12px;
-  --font-mono: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono',
-    'Roboto Mono', 'Oxygen Mono', 'Ubuntu Monospace', 'Source Code Pro',
-    'Fira Mono', 'Droid Sans Mono', 'Courier New', monospace;
-
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: #CBBEFF;
-  --background-end-rgb: 255, 255, 255;
-
-  --callout-rgb: 238, 240, 241;
-  --callout-border-rgb: 172, 175, 176;
-  --card-rgb: #6649AE;
-  --card-border-rgb: 131, 134, 135;
+  /* Minimalist government theme - Light mode */
+  --primary: #1F2937; /* Dark Gray */
+  --secondary: #4B5563; /* Medium Dark Gray */
+  --background: #ffffff; /* White */
+  --foreground: #111827; /* Near Black - Dark text for light background */
+  --muted-foreground: #6B7280; /* Medium Gray for secondary text */
+  --accent: #F3F4F6; /* Light Gray */
+  --muted: #F9FAFB;
+  --border: #E5E7EB;
+  --input: #ffffff;
+  --ring: #1F2937;
+  --destructive: #DC2626;
+  --destructive-foreground: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  
+  --max-width: 1200px;
+  --border-radius: 6px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-
-    --callout-rgb: 20, 20, 20;
-    --callout-border-rgb: 108, 108, 108;
-    --card-rgb: 100, 100, 100;
-    --card-border-rgb: 200, 200, 200;
-  }
+[data-theme="dark"] {
+  /* Minimalist government theme - Dark mode */
+  --primary: #E5E7EB; /* Light Gray */
+  --secondary: #D1D5DB; /* Medium Light Gray */
+  --background: #111827; /* Dark Navy */
+  --foreground: #F9FAFB; /* Off White */
+  --muted-foreground: #D1D5DB; /* Light Gray for secondary text */
+  --accent: #1F2937; /* Dark Gray */
+  --muted: #374151;
+  --border: #4B5563;
+  --input: #1F2937;
+  --ring: #F9FAFB;
+  --destructive: #EF4444;
+  --destructive-foreground: #ffffff;
+  --card: #1F2937;
+  --card-foreground: #F9FAFB;
 }
 
 * {
@@ -41,22 +50,386 @@ body {
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--foreground);
+  background-color: var(--background);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Typography System */
+.text-xs { font-size: 12px; }
+.text-sm { font-size: 14px; }
+.text-base { font-size: 16px; }
+.text-lg { font-size: 18px; }
+.text-xl { font-size: 20px; }
+.text-2xl { font-size: 24px; }
+.text-3xl { font-size: 30px; }
+.text-4xl { font-size: 36px; }
+
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+.leading-normal { line-height: 1.4; }
+.leading-relaxed { line-height: 1.6; }
+
+/* PNG Government Styling */
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  background-color: #B91C1C;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--secondary);
+  color: var(--foreground);
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-secondary:hover {
+  background-color: #F59E0B;
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--primary);
+  padding: 12px 24px;
+  border: 2px solid var(--primary);
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-outline:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+.card {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  background: var(--input);
+  color: var(--foreground);
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+.png-header {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  padding: 24px 0;
+}
+
+.png-flag-accent {
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+  height: 4px;
+  width: 100%;
+}
+
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 20px;
 }
 
 a {
-  color: inherit;
+  color: var(--primary);
   text-decoration: none;
+  transition: color 0.2s;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+a:hover {
+  color: #B91C1C;
+  text-decoration: underline;
+}
+
+/* Amplify UI Overrides for PNG theme */
+:global(.amplify-heading) {
+  color: var(--foreground) !important;
+  font-size: 1.3rem !important;
+}
+
+:global(.amplify-form-section) {
+  padding: 1.5rem 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+  margin: 0 auto !important;
+  width: 100% !important;
+}
+
+:global(.amplify-button--primary), :global(.amplify-button[data-variation='primary']) {
+  background-color: var(--primary) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  padding: 14px 24px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: none !important;
+  transition: all 0.3s ease !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: 16px !important;
+}
+
+:global(.amplify-button--primary:hover), :global(.amplify-button[data-variation='primary']:hover) {
+  background-color: #374151 !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+  transform: translateY(-1px) !important;
+}
+
+:global(.amplify-input), :global(.amplify-field-control) {
+  border-radius: 12px !important;
+  border: 1px solid var(--border) !important;
+  padding: 14px 16px !important;
+  width: 100% !important;
+  background-color: var(--input) !important;
+  color: var(--foreground) !important;
+  font-size: 16px !important;
+}
+
+:global(.amplify-input:focus), :global(.amplify-field-control:focus) {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(31, 41, 55, 0.1) !important;
+  outline: none !important;
+}
+
+:global(.amplify-field__label), :global(.amplify-label) {
+  color: var(--foreground) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  margin-bottom: 6px !important;
+}
+
+:global(.amplify-authenticator) {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:global(.amplify-field) {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-bottom: 20px !important;
+}
+
+:global(.amplify-tabs) {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-bottom: 1px solid var(--border) !important;
+  margin-bottom: 24px !important;
+}
+
+:global(.amplify-tabs-item) {
+  color: var(--muted-foreground) !important;
+  font-weight: 500 !important;
+  padding: 12px 24px !important;
+  border-bottom: 2px solid transparent !important;
+  transition: all 0.2s !important;
+}
+
+:global(.amplify-tabs-item:hover) {
+  color: var(--foreground) !important;
+}
+
+:global(.amplify-tabs-item[data-state=active]) {
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+:global(.amplify-flex) {
+  width: 100% !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+:global(.amplify-form) {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+:global(.amplify-button--link), :global(.amplify-button[data-variation='link']) {
+  color: var(--primary) !important;
+  font-size: 14px !important;
+}
+
+:global(.amplify-button--link:hover), :global(.amplify-button[data-variation='link']:hover) {
+  color: #374151 !important;
+  text-decoration: underline !important;
+}
+
+:global(.amplify-divider) {
+  background-color: var(--border) !important;
+  margin: 24px 0 !important;
+}
+
+:global(.amplify-divider .amplify-divider__content) {
+  background-color: var(--card) !important;
+  color: var(--muted-foreground) !important;
+  font-size: 12px !important;
+  padding: 0 16px !important;
+}
+
+:global(.amplify-field-control::placeholder) {
+  color: var(--muted-foreground) !important;
+}
+
+:global(.amplify-field-messages) {
+  margin-top: 6px !important;
+}
+
+:global(.amplify-field-messages .amplify-text) {
+  font-size: 12px !important;
+  text-align: left !important;
+  margin-bottom: 0 !important;
+}
+
+:global(.amplify-field-messages .amplify-text[data-variation="error"]) {
+  color: var(--destructive) !important;
+}
+
+:global(.amplify-card) {
+  background-color: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  padding: 40px !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+:global(.amplify-text) {
+  color: var(--muted-foreground) !important;
+  font-size: 14px !important;
+  text-align: center !important;
+  margin-bottom: 24px !important;
+}
+
+[data-amplify-authenticator] [data-amplify-form],
+[data-amplify-authenticator] [data-amplify-container],
+[data-amplify-authenticator] .amplify-authenticator,
+[data-amplify-authenticator] .amplify-form-section,
+[data-amplify-authenticator] * {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Additional overrides to ensure no borders appear */
+:global(.amplify-authenticator) {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove any dividers that might create visual separation */
+:global(.amplify-divider),
+:global(.amplify-component-divider) {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.amplify-authenticator {
+  --amplify-colors-brand-primary-10: #F3F4F6;
+  --amplify-colors-brand-primary-20: #E5E7EB;
+  --amplify-colors-brand-primary-40: #9CA3AF;
+  --amplify-colors-brand-primary-60: #6B7280;
+  --amplify-colors-brand-primary-80: var(--primary);
+  --amplify-colors-brand-primary-90: #374151;
+  --amplify-colors-brand-primary-100: #111827;
+  --amplify-colors-background-primary: transparent;
+  --amplify-colors-background-secondary: var(--card);
+  --amplify-colors-font-primary: var(--foreground);
+  --amplify-colors-font-secondary: var(--muted-foreground);
+  --amplify-colors-border-primary: var(--border);
+  --amplify-colors-border-secondary: var(--border);
+  --amplify-radii-small: 12px;
+  --amplify-radii-medium: 12px;
+  --amplify-radii-large: 12px;
+  --amplify-space-small: 12px;
+  --amplify-space-medium: 16px;
+  --amplify-space-large: 24px;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+/* Custom SevisPortal specific styles */
+.sevispass-login-option {
+  margin-top: 16px;
+  padding: 16px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  text-align: center;
+  background: var(--accent);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.sevispass-login-option:hover {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  transform: translateY(-1px);
+}
+
+.sevispass-login-option h3 {
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.sevispass-login-option p {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  margin: 0;
 }
