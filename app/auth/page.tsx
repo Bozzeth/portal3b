@@ -62,7 +62,7 @@ export default function AuthPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '20px'
+      padding: '16px'
     }}>
       {/* Theme Toggle */}
       <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100 }}>
@@ -83,13 +83,13 @@ export default function AuthPage() {
       
       <div style={{ 
         width: '100%', 
-        maxWidth: '500px',
+        maxWidth: '480px',
         position: 'relative',
         zIndex: 2,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '32px'
+        gap: '24px'
       }}>
         {/* Header */}
         <div style={{ textAlign: 'center' }}>
@@ -130,13 +130,13 @@ export default function AuthPage() {
             border: `1px solid var(--border)`,
             color: 'var(--foreground)',
             fontSize: '16px',
-            padding: '14px 28px',
+            padding: '14px 24px',
             fontWeight: '500',
             borderRadius: '6px',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             width: '100%',
-            maxWidth: '420px'
+            maxWidth: '100%'
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = 'var(--accent)';

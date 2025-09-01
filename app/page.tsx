@@ -41,13 +41,14 @@ export default function LandingPage() {
 
       <div style={{ position: 'relative', zIndex: 2 }}>
         {/* Hero Section */}
-        <section style={{ 
+        <section className="hero-section" style={{ 
           minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
           background: 'var(--background)',
           color: 'var(--foreground)',
-          position: 'relative'
+          position: 'relative',
+          padding: '20px 0'
         }}>
           <div style={{ 
             position: 'absolute', 
@@ -77,7 +78,16 @@ export default function LandingPage() {
               </p>
             </div>
             
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '60px' }}>
+            <div className="hero-buttons" style={{ 
+              display: 'flex', 
+              gap: '16px', 
+              justifyContent: 'center', 
+              flexWrap: 'wrap', 
+              marginBottom: '40px',
+              alignItems: 'stretch',
+              maxWidth: '600px',
+              margin: '0 auto 40px auto'
+            }}>
               <a 
                 href="/auth"
                 style={{ 
@@ -90,9 +100,12 @@ export default function LandingPage() {
                   borderRadius: '6px',
                   display: 'inline-flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '8px',
                   transition: 'all 0.2s ease',
-                  border: '1px solid var(--primary)'
+                  border: '1px solid var(--primary)',
+                  flex: '1 1 250px',
+                  minWidth: '200px'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'transparent';
@@ -117,7 +130,9 @@ export default function LandingPage() {
                   fontWeight: '500',
                   borderRadius: '6px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  flex: '1 1 250px',
+                  minWidth: '200px'
                 }}
                 onClick={handleSevisPassLogin}
                 onMouseEnter={(e) => {
@@ -133,59 +148,9 @@ export default function LandingPage() {
               </button>
             </div>
 
-            {/* Feature Preview */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', maxWidth: '700px', margin: '0 auto' }}>
-              {[
-                { title: 'Digital Identity', desc: 'Biometric verification' },
-                { title: 'City Services', desc: 'Resident credentials' },
-                { title: 'Instant Access', desc: 'Real-time processing' }
-              ].map((feature, i) => (
-                <div key={i} style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: '6px',
-                  padding: '20px 16px',
-                  textAlign: 'center'
-                }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '500', marginBottom: '4px', color: 'var(--foreground)' }}>{feature.title}</h3>
-                  <p style={{ fontSize: '14px', opacity: 0.7, color: 'var(--muted-foreground)' }}>{feature.desc}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
-        {/* Stats Section */}
-        <section style={{ padding: '80px 0', background: 'var(--background)' }}>
-          <div className="container">
-            <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-              <h2 style={{ fontSize: 'clamp(24px, 4vw, 32px)', fontWeight: '600', marginBottom: '12px', color: 'var(--foreground)' }}>
-                Government Service Platform
-              </h2>
-              <p style={{ fontSize: '16px', color: 'var(--muted-foreground)', maxWidth: '500px', margin: '0 auto' }}>
-                Secure, reliable access to essential services
-              </p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
-              {[
-                { value: '90%+', label: 'Approval Rate' },
-                { value: '<5min', label: 'Processing' },
-                { value: '99.9%', label: 'Uptime' },
-                { value: '24/7', label: 'Available' }
-              ].map((stat, i) => (
-                <div key={i} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 'clamp(24px, 4vw, 32px)', fontWeight: '600', color: 'var(--foreground)', marginBottom: '8px' }}>
-                    {stat.value}
-                  </div>
-                  <p style={{ fontSize: '14px', fontWeight: '400', color: 'var(--muted-foreground)' }}>
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
 
         <Footer />
       </div>
