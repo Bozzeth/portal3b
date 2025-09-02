@@ -62,7 +62,6 @@ function SevisPassContent() {
         <p style={{ 
           color: 'var(--muted-foreground)', 
           fontSize: '18px',
-          margin: '0',
           maxWidth: '600px',
           margin: '0 auto'
         }}>
