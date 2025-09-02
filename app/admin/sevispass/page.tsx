@@ -18,18 +18,22 @@ export default function SevisPassAdminPage() {
     try {
       const user = await getCurrentUser();
       
-      // Check if user has admin privileges
-      // In a real implementation, this would check user groups or attributes
-      const userGroups = user.signInDetails?.loginId?.includes('admin') || 
-                        user.username?.includes('admin');
+      // Check if user has admin privileges using AWS Cognito user groups
+      const userGroups = user.signInUserSession?.accessToken?.payload['cognito:groups'] || [];
+      const isAdminUser = userGroups.includes('ADMIN') || userGroups.includes('DICT_OFFICER');
       
-      if (userGroups) {
+      console.log('User groups:', userGroups);
+      console.log('Is admin user:', isAdminUser);
+      
+      if (isAdminUser) {
         setIsAdmin(true);
       } else {
+        console.log('User does not have admin privileges. User groups:', userGroups);
         // Redirect non-admin users
         router.push('/dashboard');
       }
     } catch (error) {
+      console.error('Error checking admin access:', error);
       // User not authenticated
       router.push('/auth');
     } finally {

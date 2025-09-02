@@ -6,12 +6,14 @@ import { getCurrentUser } from 'aws-amplify/auth';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { SevisPassCard } from '@/components/sevispass/SevisPassCard';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Clock, XCircle, CheckCircle, FileText, RefreshCw } from 'lucide-react';
 
 function SevisPassViewContent() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [sevisPassData, setSevisPassData] = useState<any>(null);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [applicationData, setApplicationData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ function SevisPassViewContent() {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
       
-      // Check if user has a registered SevisPass
+      // Check if user has a registered SevisPass or pending application
       const response = await fetch('/api/sevispass/user-data', {
         method: 'GET',
         headers: {
@@ -34,16 +36,26 @@ function SevisPassViewContent() {
       const result = await response.json();
       
       if (result.exists && result.data) {
-        // User has a registered SevisPass
+        // User has an approved SevisPass
         setSevisPassData(result.data);
-      } else {
-        // No SevisPass found - will show the application prompt
+        setApplicationStatus('approved');
+      } else if (result.hasApplication) {
+        // User has an application (pending, under review, or rejected)
+        setApplicationStatus(result.applicationStatus);
+        setApplicationData(result.applicationData);
         setSevisPassData(null);
+      } else {
+        // No SevisPass or application found
+        setSevisPassData(null);
+        setApplicationStatus(null);
+        setApplicationData(null);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
       // On error, assume no SevisPass exists
       setSevisPassData(null);
+      setApplicationStatus(null);
+      setApplicationData(null);
     } finally {
       setLoading(false);
     }
@@ -162,9 +174,10 @@ function SevisPassViewContent() {
           </p>
         </div>
 
-        {sevisPassData ? (
+        {/* Render different states based on application status */}
+        {applicationStatus === 'approved' && sevisPassData ? (
           <>
-            {/* SevisPass Card */}
+            {/* Approved SevisPass */}
             <SevisPassCard 
               data={sevisPassData}
               showActions={true}
@@ -268,8 +281,129 @@ function SevisPassViewContent() {
               </div>
             </div>
           </>
+        ) : applicationStatus === 'under_review' ? (
+          // Application Under Review
+          <div style={{
+            background: 'var(--card)',
+            borderRadius: '16px',
+            padding: '60px 40px',
+            textAlign: 'center',
+            border: '2px solid #f59e0b'
+          }}>
+            <Clock size={64} style={{ color: '#f59e0b', marginBottom: '24px' }} />
+            <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '16px', color: '#f59e0b' }}>
+              Application Under Review
+            </h2>
+            <p style={{ color: 'var(--muted-foreground)', fontSize: '16px', maxWidth: '500px', margin: '0 auto 24px auto' }}>
+              Your SevisPass application is being reviewed by our verification team. This process typically takes {applicationData?.expectedReviewTime || '3-5 business days'}.
+            </p>
+            
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '12px',
+              padding: '20px',
+              maxWidth: '400px',
+              margin: '0 auto 32px auto'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <FileText size={20} style={{ color: '#f59e0b' }} />
+                <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>Application Details</h3>
+              </div>
+              <div style={{ textAlign: 'left', fontSize: '14px' }}>
+                <p style={{ margin: '4px 0' }}>
+                  <strong>Application ID:</strong> {applicationData?.applicationId}
+                </p>
+                <p style={{ margin: '4px 0' }}>
+                  <strong>Submitted:</strong> {new Date(applicationData?.submittedAt).toLocaleDateString()}
+                </p>
+                <p style={{ margin: '4px 0' }}>
+                  <strong>Document Type:</strong> {applicationData?.documentType}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: '12px 24px',
+                background: 'var(--muted)',
+                color: 'var(--muted-foreground)',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                margin: '0 auto'
+              }}
+            >
+              <RefreshCw size={16} />
+              Check Status
+            </button>
+          </div>
+        ) : applicationStatus === 'rejected' ? (
+          // Application Rejected
+          <div style={{
+            background: 'var(--card)',
+            borderRadius: '16px',
+            padding: '60px 40px',
+            textAlign: 'center',
+            border: '2px solid var(--destructive)'
+          }}>
+            <XCircle size={64} style={{ color: 'var(--destructive)', marginBottom: '24px' }} />
+            <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '16px', color: 'var(--destructive)' }}>
+              Application Rejected
+            </h2>
+            <p style={{ color: 'var(--muted-foreground)', fontSize: '16px', maxWidth: '500px', margin: '0 auto 24px auto' }}>
+              Unfortunately, your SevisPass application has been rejected. Please review the reason below and resubmit with corrections.
+            </p>
+            
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '12px',
+              padding: '20px',
+              maxWidth: '500px',
+              margin: '0 auto 32px auto',
+              textAlign: 'left'
+            }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--destructive)' }}>
+                Rejection Reason
+              </h3>
+              <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.5' }}>
+                {applicationData?.rejectionReason}
+              </p>
+            </div>
+
+            {applicationData?.canReapply && (
+              <button
+                onClick={handleApplyForSevisPass}
+                style={{
+                  padding: '16px 32px',
+                  background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  transition: 'transform 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                Apply Again
+              </button>
+            )}
+          </div>
         ) : (
-          // No SevisPass Found
+          // No Application Yet
           <div style={{
             background: 'var(--card)',
             borderRadius: '16px',
