@@ -1,6 +1,7 @@
 "use client";
 
 import { Footer } from "@/components/layout/Footer";
+import { ServicesSection } from "@/components/layout/ServicesSection";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useState } from 'react';
 
@@ -42,7 +43,7 @@ export default function LandingPage() {
       <div style={{ position: 'relative', zIndex: 2 }}>
         {/* Hero Section */}
         <section className="hero-section" style={{ 
-          minHeight: '100vh',
+          minHeight: '50vh',
           display: 'flex',
           alignItems: 'center',
           background: 'var(--background)',
@@ -56,7 +57,8 @@ export default function LandingPage() {
             left: 0, 
             right: 0, 
             height: '4px', 
-            background: 'linear-gradient(90deg, #DC2626 0%, #FCD34D 100%)' 
+            background: 'linear-gradient(90deg, #F59E0B 0%, #FCD34D 100%)',
+            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
           }}></div>
           
           <div className="container" style={{ textAlign: 'center', padding: '40px 20px' }}>
@@ -66,7 +68,11 @@ export default function LandingPage() {
                 fontWeight: '700', 
                 marginBottom: '16px',
                 letterSpacing: '-0.01em',
-                color: 'var(--foreground)'
+                color: '#B91C1C',
+                background: 'linear-gradient(135deg, #B91C1C 0%, #F59E0B 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
               }}>
                 SevisPortal
               </h1>
@@ -151,6 +157,8 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Services Section */}
+        <ServicesSection />
 
         <Footer />
       </div>
