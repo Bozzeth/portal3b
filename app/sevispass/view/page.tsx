@@ -155,7 +155,6 @@ function SevisPassViewContent() {
           <p style={{ 
             color: 'var(--muted-foreground)', 
             fontSize: '18px',
-            margin: '0',
             maxWidth: '600px',
             margin: '0 auto'
           }}>
@@ -282,7 +281,7 @@ function SevisPassViewContent() {
             <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '16px' }}>
               No SevisPass Found
             </h2>
-            <p style={{ color: 'var(--muted-foreground)', fontSize: '16px', marginBottom: '32px', maxWidth: '400px', margin: '0 auto 32px auto' }}>
+            <p style={{ color: 'var(--muted-foreground)', fontSize: '16px', maxWidth: '400px', margin: '0 auto 32px auto' }}>
               You don't have a SevisPass yet. Apply now to get your secure digital identity for accessing Papua New Guinea government services.
             </p>
             <button

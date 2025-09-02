@@ -150,7 +150,7 @@ function SevisPassContent() {
         onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
         >
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
-          <h3 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '12px', margin: 0 }}>
+          <h3 style={{ fontSize: '24px', fontWeight: '600', margin: '0 0 12px 0' }}>
             Start Your Application
           </h3>
           <p style={{ fontSize: '16px', opacity: 0.9, marginBottom: '20px', lineHeight: '1.5' }}>
