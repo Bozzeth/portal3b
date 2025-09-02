@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const fallbackInfo = {
       fullName: generateRealisticName(),
       dateOfBirth: generateRealisticDOB(),
-      documentNumber: generateDocumentNumber(documentType),
+      documentNumber: generateDocumentNumber('passport'), // Default to passport if documentType is not available
       nationality: 'Papua New Guinea'
     };
 
