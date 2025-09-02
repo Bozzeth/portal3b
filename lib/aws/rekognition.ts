@@ -11,12 +11,15 @@ import {
   DeleteFacesCommand,
   ListCollectionsCommand,
   DetectTextCommand,
-  StartFaceLivenessSessionCommand,
-  GetFaceLivenessSessionResultsCommand,
   type Face,
   type ComparedFace,
   type FaceMatch
 } from '@aws-sdk/client-rekognition';
+import {
+  RekognitionStreamingClient,
+  StartFaceLivenessSessionCommand,
+  GetFaceLivenessSessionResultsCommand,
+} from '@aws-sdk/client-rekognitionstreaming';
 import { Amplify } from 'aws-amplify';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
@@ -54,6 +57,16 @@ async function getRekognitionClient(): Promise<RekognitionClient> {
   const { region, credentials } = await getAmplifyCredentials();
   
   return new RekognitionClient({
+    region,
+    credentials,
+  });
+}
+
+// Initialize Rekognition Streaming client for Face Liveness
+async function getRekognitionStreamingClient(): Promise<RekognitionStreamingClient> {
+  const { region, credentials } = await getAmplifyCredentials();
+  
+  return new RekognitionStreamingClient({
     region,
     credentials,
   });
@@ -387,7 +400,7 @@ export async function extractTextFromDocument(
 }
 
 /**
- * Start a face liveness session
+ * Start a face liveness session using AWS Rekognition Face Liveness
  */
 export async function startLivenessSession(): Promise<{
   sessionId?: string;
@@ -395,19 +408,19 @@ export async function startLivenessSession(): Promise<{
   error?: string;
 }> {
   try {
-    const rekognitionClient = await getRekognitionClient();
-    // Note: You'll need to configure S3 bucket in Amplify storage
+    const rekognitionStreamingClient = await getRekognitionStreamingClient();
+    
     const command = new StartFaceLivenessSessionCommand({
       Settings: {
-        // OutputConfig: {
-        //   S3Bucket: 'your-amplify-storage-bucket',
-        //   S3KeyPrefix: 'liveness-sessions/',
-        // },
+        OutputConfig: {
+          S3Bucket: process.env.NEXT_PUBLIC_AMPLIFY_STORAGE_BUCKET_NAME || 'sevispass-storage',
+          S3KeyPrefix: 'liveness-sessions/',
+        },
         AuditImagesLimit: 4,
       },
     });
 
-    const response = await rekognitionClient.send(command);
+    const response = await rekognitionStreamingClient.send(command);
     
     return {
       sessionId: response.SessionId,
@@ -432,12 +445,13 @@ export async function getLivenessSessionResults(sessionId: string): Promise<{
   error?: string;
 }> {
   try {
-    const rekognitionClient = await getRekognitionClient();
+    const rekognitionStreamingClient = await getRekognitionStreamingClient();
+    
     const command = new GetFaceLivenessSessionResultsCommand({
       SessionId: sessionId,
     });
 
-    const response = await rekognitionClient.send(command);
+    const response = await rekognitionStreamingClient.send(command);
     
     const confidence = response.Confidence || 0;
     const status = response.Status;
