@@ -21,7 +21,7 @@ export const auth = defineAuth({
     },
     phoneNumber: {
       mutable: true,
-      required: false,
+      required: true,
     },
     "custom:user_role": {
       dataType: "String",
