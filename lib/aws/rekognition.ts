@@ -411,9 +411,9 @@ export async function startLivenessSession(): Promise<{
     
     const command = new StartFaceLivenessSessionCommand({
       SessionId: `sevispass-${Date.now()}-${Math.random().toString(36).substring(2)}`,
-      VideoWidth: 640,
-      VideoHeight: 480,
-      ChallengeVersions: ["FaceMovementAndLightChallenge_1.0.0"]
+      VideoWidth: "640",
+      VideoHeight: "480",
+      ChallengeVersions: "FaceMovementAndLightChallenge_1.0.0"
     });
 
     const response = await rekognitionStreamingClient.send(command);
