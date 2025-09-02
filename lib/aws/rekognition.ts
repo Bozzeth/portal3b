@@ -410,13 +410,8 @@ export async function startLivenessSession(): Promise<{
     const rekognitionStreamingClient = await getRekognitionStreamingClient();
     
     const command = new StartFaceLivenessSessionCommand({
-      Settings: {
-        OutputConfig: {
-          S3Bucket: process.env.NEXT_PUBLIC_AMPLIFY_STORAGE_BUCKET_NAME || 'sevispass-storage',
-          S3KeyPrefix: 'liveness-sessions/',
-        },
-        AuditImagesLimit: 4,
-      },
+      // Face Liveness sessions use different parameters
+      // Check AWS documentation for correct parameters
     });
 
     const response = await rekognitionStreamingClient.send(command);
