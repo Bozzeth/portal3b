@@ -47,6 +47,7 @@ export function CustomAuth({ onSuccess }: CustomAuthProps) {
     return phoneRegex.test(phone);
   };
 
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -78,21 +79,52 @@ export function CustomAuth({ onSuccess }: CustomAuthProps) {
     setLoading(true);
     setError('');
 
+    console.log('🚀 Starting sign up process...');
+    console.log('📋 Form data:', {
+      email: formData.email,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      phoneNumber: formData.phoneNumber,
+      passwordLength: formData.password.length
+    });
+
     try {
+      console.log('✅ Validating email:', formData.email);
       if (!validateEmail(formData.email)) {
+        console.error('❌ Email validation failed');
         throw new Error('Please enter a valid email address');
       }
+
+      console.log('✅ Validating password length');
       if (!validatePassword(formData.password)) {
+        console.error('❌ Password validation failed');
         throw new Error('Password must be at least 8 characters long');
       }
+
+      console.log('✅ Validating password match');
       if (formData.password !== formData.confirmPassword) {
+        console.error('❌ Password match validation failed');
         throw new Error('Passwords do not match');
       }
+
+      console.log('✅ Validating phone number:', formData.phoneNumber);
       if (!validatePhoneNumber(formData.phoneNumber)) {
+        console.error('❌ Phone number validation failed. Expected format: +675xxxxxxxx, got:', formData.phoneNumber);
         throw new Error('Phone number must be in format +675xxxxxxxx');
       }
 
-      const { isSignUpComplete, userId, nextStep } = await signUp({
+
+      console.log('📞 Calling AWS Amplify signUp with:', {
+        username: formData.email,
+        userAttributes: {
+          email: formData.email,
+          given_name: formData.firstName,
+          family_name: formData.lastName,
+          phone_number: formData.phoneNumber,
+        }
+      });
+
+      const signUpResult = await signUp({
         username: formData.email,
         password: formData.password,
         options: {
@@ -101,18 +133,41 @@ export function CustomAuth({ onSuccess }: CustomAuthProps) {
             given_name: formData.firstName,
             family_name: formData.lastName,
             phone_number: formData.phoneNumber,
-          },
+            },
         },
       });
 
+      console.log('📨 SignUp result:', signUpResult);
+      const { isSignUpComplete, userId, nextStep } = signUpResult;
+
+      console.log('🔍 Checking next step:', {
+        isSignUpComplete,
+        userId,
+        nextStep: nextStep?.signUpStep,
+        fullNextStep: nextStep
+      });
+
       if (nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
+        console.log('✉️ Email confirmation required - switching to confirm mode');
         setMode('confirmSignUp');
         setMessage('Please check your email for a confirmation code');
       } else if (isSignUpComplete) {
+        console.log('✅ Sign up completed immediately - no email confirmation needed');
         setMessage('Account created successfully! Please sign in.');
+        setMode('signIn');
+      } else {
+        console.warn('⚠️ Unexpected sign up state:', { isSignUpComplete, nextStep });
+        setMessage('Account created. Please check your email or contact support.');
         setMode('signIn');
       }
     } catch (err: any) {
+      console.error('❌ Sign up error:', err);
+      console.error('❌ Error details:', {
+        name: err.name,
+        message: err.message,
+        code: err.code,
+        stack: err.stack
+      });
       setError(err.message || 'Failed to create account');
     } finally {
       setLoading(false);
@@ -124,18 +179,35 @@ export function CustomAuth({ onSuccess }: CustomAuthProps) {
     setLoading(true);
     setError('');
 
+    console.log('🔍 Starting email confirmation process...');
+    console.log('📧 Confirmation data:', {
+      username: formData.email,
+      confirmationCode: formData.confirmationCode
+    });
+
     try {
-      const { isSignUpComplete, nextStep } = await confirmSignUp({
+      const confirmResult = await confirmSignUp({
         username: formData.email,
         confirmationCode: formData.confirmationCode,
       });
 
-      if (isSignUpComplete) {
+      console.log('✅ Confirmation result:', confirmResult);
+
+      if (confirmResult.isSignUpComplete) {
+        console.log('🎉 Account confirmed successfully!');
         setMessage('Account confirmed successfully! Please sign in.');
         setMode('signIn');
         setFormData(prev => ({ ...prev, confirmationCode: '' }));
+      } else {
+        console.warn('⚠️ Confirmation completed but signup not complete:', confirmResult);
       }
     } catch (err: any) {
+      console.error('❌ Confirmation error:', err);
+      console.error('❌ Confirmation error details:', {
+        name: err.name,
+        message: err.message,
+        code: err.code
+      });
       setError(err.message || 'Failed to confirm account');
     } finally {
       setLoading(false);
