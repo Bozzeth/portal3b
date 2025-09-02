@@ -1,40 +1,40 @@
 :root {
-  /* Sevis PNG Brand Colors - Light mode */
-  --primary: #F59E0B; /* Golden Yellow */
-  --secondary: #D97706; /* Deeper Amber */
-  --background: #FEFCE8; /* Very Light Yellow/Cream */
-  --foreground: #1C1917; /* Dark Brown/Black */
-  --muted-foreground: #78716C; /* Warm Gray */
-  --accent: #FEF3C7; /* Light Golden */
-  --muted: #FEF7ED;
-  --border: #FDE68A;
-  --input: #FFFBEB;
-  --ring: #F59E0B;
+  /* Minimalist government theme - Light mode */
+  --primary: #1F2937; /* Dark Gray */
+  --secondary: #4B5563; /* Medium Dark Gray */
+  --background: #ffffff; /* White */
+  --foreground: #111827; /* Near Black - Dark text for light background */
+  --muted-foreground: #6B7280; /* Medium Gray for secondary text */
+  --accent: #F3F4F6; /* Light Gray */
+  --muted: #F9FAFB;
+  --border: #E5E7EB;
+  --input: #ffffff;
+  --ring: #1F2937;
   --destructive: #DC2626;
   --destructive-foreground: #ffffff;
-  --card: #FFFBEB;
-  --card-foreground: #1C1917;
+  --card: #ffffff;
+  --card-foreground: #111827;
   
   --max-width: 1200px;
   --border-radius: 6px;
 }
 
 [data-theme="dark"] {
-  /* Sevis PNG Brand Colors - Dark mode */
-  --primary: #FCD34D; /* Bright Golden */
-  --secondary: #F59E0B; /* Golden Yellow */
-  --background: #1C1917; /* Dark Brown/Black */
-  --foreground: #FEF3C7; /* Light Golden */
-  --muted-foreground: #A8A29E; /* Light Warm Gray */
-  --accent: #292524; /* Dark Brown */
-  --muted: #44403C;
-  --border: #57534E;
-  --input: #292524;
-  --ring: #FCD34D;
+  /* Minimalist government theme - Dark mode */
+  --primary: #E5E7EB; /* Light Gray */
+  --secondary: #D1D5DB; /* Medium Light Gray */
+  --background: #111827; /* Dark Navy */
+  --foreground: #F9FAFB; /* Off White */
+  --muted-foreground: #D1D5DB; /* Light Gray for secondary text */
+  --accent: #1F2937; /* Dark Gray */
+  --muted: #374151;
+  --border: #4B5563;
+  --input: #1F2937;
+  --ring: #F9FAFB;
   --destructive: #EF4444;
   --destructive-foreground: #ffffff;
-  --card: #292524;
-  --card-foreground: #FEF3C7;
+  --card: #1F2937;
+  --card-foreground: #F9FAFB;
 }
 
 * {
