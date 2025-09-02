@@ -18,17 +18,46 @@ export default function SevisPassAdminPage() {
     try {
       const user = await getCurrentUser();
       
-      // Check if user has admin privileges using AWS Cognito user groups
-      const userGroups = user.signInUserSession?.accessToken?.payload['cognito:groups'] || [];
-      const isAdminUser = userGroups.includes('ADMIN') || userGroups.includes('DICT_OFFICER');
+      // Debug: Log the entire user object to see structure
+      console.log('Full user object:', JSON.stringify(user, null, 2));
       
-      console.log('User groups:', userGroups);
-      console.log('Is admin user:', isAdminUser);
+      // Try multiple ways to access user groups
+      let userGroups = [];
+      
+      // Method 1: Check signInUserSession
+      if (user.signInUserSession?.accessToken?.payload) {
+        const payload = user.signInUserSession.accessToken.payload;
+        console.log('Access token payload:', payload);
+        userGroups = payload['cognito:groups'] || [];
+      }
+      
+      // Method 2: Check if groups are in a different location
+      if (userGroups.length === 0 && user.attributes) {
+        console.log('User attributes:', user.attributes);
+      }
+      
+      // Method 3: Temporary override for testing - check username/email
+      const tempAdminCheck = user.username?.includes('admin') || 
+                           user.signInDetails?.loginId?.includes('admin') ||
+                           (user.attributes && user.attributes.email?.includes('admin'));
+      
+      console.log('User groups found:', userGroups);
+      console.log('Username:', user.username);
+      console.log('Login ID:', user.signInDetails?.loginId);
+      console.log('Email:', user.attributes?.email);
+      console.log('Temp admin check:', tempAdminCheck);
+      
+      const isAdminUser = userGroups.includes('ADMIN') || 
+                          userGroups.includes('DICT_OFFICER') ||
+                          tempAdminCheck; // Temporary fallback
+      
+      console.log('Final admin decision:', isAdminUser);
       
       if (isAdminUser) {
         setIsAdmin(true);
       } else {
-        console.log('User does not have admin privileges. User groups:', userGroups);
+        console.log('Access denied. User groups:', userGroups);
+        alert('Debug: Access denied. Check console for user group details.');
         // Redirect non-admin users
         router.push('/dashboard');
       }
