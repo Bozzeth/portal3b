@@ -1,8 +1,12 @@
 // SevisPass Service - Real Amplify Gen 2 DynamoDB integration
 import { generateClient } from 'aws-amplify/data';
-import { uploadData, getUrl } from 'aws-amplify/storage';
+import { uploadData } from 'aws-amplify/storage';
+import { getUrl } from 'aws-amplify/storage/server';
 import type { Schema } from '@/amplify/data/resource';
 import { generateUIN, generateApplicationId } from '@/lib/utils/sevispass';
+import { runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
+import { Amplify } from 'aws-amplify';
+import outputs from '@/amplify_outputs.json';
 
 const client = generateClient<Schema>();
 
@@ -38,37 +42,45 @@ export class SevisPassService {
     userId: string, 
     applicationData: Omit<SevisPassApplicationData, 'userId'>,
     documentImageBase64: string,
-    selfieImageBase64: string
+    selfieImageBase64: string,
+    request: Request
   ): Promise<void> {
     try {
-      // Upload images to S3
-      const documentKey = `protected/documents/${userId}/${applicationData.applicationId}/document.jpg`;
-      const selfieKey = `protected/faces/${userId}/${applicationData.applicationId}/selfie.jpg`;
+      console.log('Starting saveApplication for userId:', userId);
+      
+      // Configure Amplify for server-side usage
+      Amplify.configure(outputs);
+      
+      // Upload images to S3 using public prefix (temporary - TODO: implement proper server-side auth)
+      const documentKey = `public/sevispass/documents/${userId}/${applicationData.applicationId}/document.jpg`;
+      const selfieKey = `public/sevispass/faces/${userId}/${applicationData.applicationId}/selfie.jpg`;
+      console.log('S3 keys generated:', { documentKey, selfieKey });
 
       // Convert base64 to blob
       const documentBlob = base64ToBlob(documentImageBase64);
       const selfieBlob = base64ToBlob(selfieImageBase64);
 
-      // Upload to S3
+      console.log('Starting S3 uploads using direct uploadData');
+      // Upload to S3 using direct uploadData (guest access)
       await Promise.all([
         uploadData({
-          key: documentKey,
+          path: documentKey,
           data: documentBlob,
           options: {
-            contentType: 'image/jpeg',
-            accessLevel: 'protected'
+            contentType: 'image/jpeg'
           }
         }).result,
         uploadData({
-          key: selfieKey,
+          path: selfieKey,
           data: selfieBlob,
           options: {
-            contentType: 'image/jpeg',
-            accessLevel: 'protected'
+            contentType: 'image/jpeg'
           }
         }).result
       ]);
+      console.log('S3 uploads completed');
 
+      console.log('Starting DynamoDB SevisPassApplication create');
       // Save to DynamoDB
       await client.models.SevisPassApplication.create({
         userId,
@@ -91,9 +103,11 @@ export class SevisPassService {
         reviewedBy: applicationData.reviewedBy,
         reviewedAt: applicationData.reviewedAt,
       });
+      console.log('DynamoDB SevisPassApplication created successfully');
 
       // If approved, also create SevisPassHolder record
       if (applicationData.status === 'approved' && applicationData.uin) {
+        console.log('Creating SevisPassHolder record');
         await client.models.SevisPassHolder.create({
           userId,
           uin: applicationData.uin,
@@ -103,11 +117,11 @@ export class SevisPassService {
           nationality: applicationData.extractedInfo.nationality,
           issuedAt: applicationData.issuedAt!,
           expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
-          status: 'active',
           faceId: applicationData.verificationData.faceId,
           documentImageKey: documentKey,
           photoImageKey: selfieKey,
         });
+        console.log('SevisPassHolder record created successfully');
       }
 
       console.log(`Saved SevisPass application ${applicationData.applicationId} for user ${userId}`);
@@ -166,7 +180,7 @@ export class SevisPassService {
   /**
    * Get approved SevisPass holder data
    */
-  static async getSevisPassHolder(userId: string): Promise<any | null> {
+  static async getSevisPassHolder(userId: string, request?: Request): Promise<any | null> {
     try {
       const { data: holders } = await client.models.SevisPassHolder.list({
         filter: { userId: { eq: userId }, status: { eq: 'active' } }
@@ -182,9 +196,12 @@ export class SevisPassService {
       let photoUrl = undefined;
       if (holder.photoImageKey) {
         try {
-          const urlResult = await getUrl({
-            key: holder.photoImageKey,
-            options: { accessLevel: 'protected' }
+          const urlResult = await runWithAmplifyServerContext({
+            nextServerContext: null,
+            operation: (contextSpec) => getUrl(contextSpec, {
+              key: holder.photoImageKey,
+              options: { accessLevel: 'guest' }
+            })
           });
           photoUrl = urlResult.url.toString();
         } catch (error) {

@@ -59,7 +59,7 @@ const schema = a.schema({
       nationality: a.string().default('Papua New Guinea'),
       issuedAt: a.datetime().required(),
       expiryDate: a.datetime(),
-      status: a.enum(['active', 'suspended', 'revoked']),
+      status: a.enum(['active', 'suspended', 'revoked']).default('active'),
       faceId: a.string(), // AWS Rekognition face ID for login
       documentImageKey: a.string(),
       photoImageKey: a.string(),

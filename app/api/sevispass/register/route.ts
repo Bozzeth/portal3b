@@ -6,6 +6,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('SevisPass registration started');
     const body = await req.json();
     const { 
       documentType, 
@@ -16,15 +17,18 @@ export async function POST(req: NextRequest) {
 
     // Validate required fields
     if (!documentType || !documentImage || !selfieImage || !applicantInfo) {
+      console.log('Missing required fields');
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
+    console.log('Starting text extraction from document');
     // Extract text from document
     const documentBytes = base64ToUint8Array(documentImage);
     const textExtractionResult = await extractTextFromDocument(documentBytes);
+    console.log('Text extraction completed:', textExtractionResult.success);
 
     // Extract document information from the text or fallback
     let extractedInfo = {
@@ -75,17 +79,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log('Starting SevisPass verification');
     // Verify the registration
     const verificationResult = await verifySevisPassRegistration(
       selfieImage,
       documentImage,
       generateUIN() // Generate temporary UIN for verification
     );
+    console.log('Verification completed:', verificationResult);
 
     if (verificationResult.approved) {
       // Auto-approved - generate final UIN and save
       const finalUIN = generateUIN();
       
+      console.log('Saving approved application');
       await SevisPassService.saveApplication(userId, {
         applicationId,
         status: 'approved',
@@ -99,7 +106,8 @@ export async function POST(req: NextRequest) {
         },
         uin: finalUIN,
         issuedAt: new Date().toISOString()
-      }, documentImage, selfieImage);
+      }, documentImage, selfieImage, req);
+      console.log('Application saved successfully');
       
       return NextResponse.json({
         success: true,
@@ -111,6 +119,7 @@ export async function POST(req: NextRequest) {
       });
     } else if (verificationResult.requiresManualReview) {
       // Requires manual review - save to review queue
+      console.log('Saving application for manual review');
       await SevisPassService.saveApplication(userId, {
         applicationId,
         status: 'under_review',
@@ -121,7 +130,8 @@ export async function POST(req: NextRequest) {
           confidence: verificationResult.confidence,
           requiresManualReview: true
         }
-      }, documentImage, selfieImage);
+      }, documentImage, selfieImage, req);
+      console.log('Review application saved successfully');
       
       return NextResponse.json({
         success: true,
@@ -133,6 +143,7 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // Rejected - still save for audit trail
+      console.log('Saving rejected application');
       await SevisPassService.saveApplication(userId, {
         applicationId,
         status: 'rejected',
@@ -144,7 +155,8 @@ export async function POST(req: NextRequest) {
           requiresManualReview: false
         },
         rejectionReason: verificationResult.error || 'Verification failed - insufficient confidence score'
-      }, documentImage, selfieImage);
+      }, documentImage, selfieImage, req);
+      console.log('Rejected application saved successfully');
       
       return NextResponse.json({
         success: false,
