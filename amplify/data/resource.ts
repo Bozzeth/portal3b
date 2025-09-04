@@ -43,7 +43,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.owner().to(['create', 'read', 'update']),
-      allow.groupOf('reviewedBy').to(['read', 'update']),
+      allow.groupDefinedIn('reviewedBy').to(['read', 'update']),
       allow.group('ADMIN').to(['read', 'update']),
       allow.group('DICT_OFFICER').to(['read', 'update'])
     ])

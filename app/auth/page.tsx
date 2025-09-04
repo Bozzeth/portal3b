@@ -143,7 +143,7 @@ export default function AuthPage() {
               <button
                 onClick={() => router.push('/sevispass/login')}
                 style={{ 
-                  background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)', 
+                  background: 'var(--primary)', 
                   border: 'none',
                   color: 'white',
                   fontSize: '16px',
@@ -171,35 +171,6 @@ export default function AuthPage() {
                 🔐 Login with SevisPass
               </button>
 
-              <button
-                onClick={handleSevisPassRegister}
-                style={{ 
-                  background: 'transparent', 
-                  border: `2px solid var(--primary)`,
-                  color: 'var(--primary)',
-                  fontSize: '16px',
-                  padding: '14px 24px',
-                  fontWeight: '500',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--primary)';
-                  e.currentTarget.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = 'var(--primary)';
-                }}
-              >
-                📝 Register for SevisPass
-              </button>
             </div>
 
             {/* Footer */}
