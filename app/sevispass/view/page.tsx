@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser } from 'aws-amplify/auth';
+import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { SevisPassCard } from '@/components/sevispass/SevisPassCard';
@@ -25,11 +25,20 @@ function SevisPassViewContent() {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
       
+      // Get the session to obtain the JWT token
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
+      
+      if (!token) {
+        throw new Error('No access token available');
+      }
+      
       // Check if user has a registered SevisPass or pending application
       const response = await fetch('/api/sevispass/user-data', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
       });
       

@@ -3,8 +3,14 @@ import { SevisPassStore } from '@/lib/store/sevispass-store';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get user ID from request (in production, this would be from JWT token)
-    const userId = SevisPassStore.getUserIdFromRequest();
+    // Get user ID from JWT token
+    const userId = await SevisPassStore.getUserIdFromRequest(request);
+    
+    if (!userId) {
+      return NextResponse.json({
+        error: 'Authentication required'
+      }, { status: 401 });
+    }
     
     // Get the actual application data
     const application = SevisPassStore.getApplication(userId);

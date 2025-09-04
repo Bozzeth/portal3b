@@ -51,7 +51,14 @@ export async function POST(req: NextRequest) {
 
     // Generate application ID
     const applicationId = generateApplicationId();
-    const userId = SevisPassStore.getUserIdFromRequest();
+    const userId = await SevisPassStore.getUserIdFromRequest(req);
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
 
     // Verify the registration
     const verificationResult = await verifySevisPassRegistration(

@@ -1,6 +1,8 @@
 // Simple in-memory store for SevisPass applications
 // In production, this would be a proper database
 
+import { NextRequest } from 'next/server';
+
 interface SevisPassApplication {
   userId: string;
   applicationId: string;
@@ -90,21 +92,22 @@ export class SevisPassStore {
     return Array.from(applications.values());
   }
 
-  // Function to get user ID from request (simplified for demo)
-  static getUserIdFromRequest(request?: any): string {
-    // In production, this would extract user ID from JWT token or session
-    // For now, use a consistent demo user ID for testing
-    if (typeof window !== 'undefined') {
-      // Client-side: use session storage for consistency
-      let userId = sessionStorage.getItem('demo-user-id');
-      if (!userId) {
-        userId = 'demo-user-' + Date.now().toString().slice(-6);
-        sessionStorage.setItem('demo-user-id', userId);
+  // Function to get user ID from JWT token
+  static async getUserIdFromRequest(request?: NextRequest): Promise<string | null> {
+    try {
+      // Server-side: extract from Authorization header
+      if (request) {
+        const authHeader = request.headers.get('authorization');
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const token = authHeader.slice(7);
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          return payload.sub || payload['cognito:username'] || null;
+        }
       }
-      return userId;
-    } else {
-      // Server-side: use a fixed demo user ID
-      return 'demo-user-server';
+      return null;
+    } catch (error) {
+      console.error('Error extracting user ID from request:', error);
+      return null;
     }
   }
 }

@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Camera } from 'lucide-react';
 import { SevisPassCard } from './SevisPassCard';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 type DocumentType = 'nid' | 'drivers_license' | 'png_passport' | 'international_passport';
 type RegistrationStep = 'document_selection' | 'document_capture' | 'face_capture' | 'processing' | 'review_pending' | 'completed' | 'rejected';
@@ -207,38 +208,53 @@ export function SevisPassRegistration({ onComplete, onCancel }: SevisPassRegistr
     setStep('processing');
 
     try {
-      // TODO: Integrate with AWS Rekognition
-      // 1. Face liveness detection
-      // 2. Compare face with document photo
-      // 3. Generate confidence score
+      // Get the session to obtain the JWT token
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
       
-      console.log('Processing face comparison...');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      console.log('Submitting SevisPass application...');
       
-      // Simulate API processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const response = await fetch('/api/sevispass/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          documentType: selectedDocType,
+          documentImage: documentImage,
+          selfieImage: faceImageData,
+          applicantInfo: documentInfo
+        })
+      });
+
+      const result = await response.json();
       
-      // Mock confidence score
-      const confidenceScore = Math.random() * 100; // 0-100
-      
-      if (confidenceScore >= 90) {
-        // Auto-approve
-        const uin = generateUIN();
-        setApplicationId(uin);
-        setStep('completed');
-        onComplete?.({ uin, status: 'approved' });
-      } else if (confidenceScore >= 80) {
-        // Send for manual review
-        const applicationId = generateApplicationId();
-        setApplicationId(applicationId);
-        setStep('review_pending');
-        onComplete?.({ uin: applicationId, status: 'pending' });
+      if (response.ok && result.success) {
+        if (result.status === 'approved') {
+          setApplicationId(result.uin);
+          setStep('completed');
+          onComplete?.({ uin: result.uin, status: 'approved' });
+        } else if (result.status === 'under_review') {
+          setApplicationId(result.applicationId);
+          setStep('review_pending');
+          onComplete?.({ uin: result.applicationId, status: 'pending' });
+        } else {
+          setStep('rejected');
+          setError(result.error || result.message || 'Application rejected');
+          onComplete?.({ uin: '', status: 'rejected' });
+        }
       } else {
-        // Reject
-        setStep('rejected');
-        onComplete?.({ uin: '', status: 'rejected' });
+        throw new Error(result.error || result.message || 'Registration failed');
       }
     } catch (err: any) {
+      console.error('Registration error:', err);
       setError(err.message || 'Face verification failed');
+      setStep('rejected');
     } finally {
       setLoading(false);
     }
