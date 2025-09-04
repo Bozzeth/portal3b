@@ -117,6 +117,7 @@ export class SevisPassService {
           nationality: applicationData.extractedInfo.nationality,
           issuedAt: applicationData.issuedAt!,
           expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
+          status: 'active', // Explicitly set default status
           faceId: applicationData.verificationData.faceId,
           documentImageKey: documentKey,
           photoImageKey: selfieKey,
