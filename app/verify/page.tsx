@@ -32,7 +32,7 @@ export default function VerifyPage() {
     useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleManualVerification = () => {
+  const handleManualVerification = async () => {
     if (!qrInput.trim()) {
       setVerificationResult({
         valid: false,
@@ -44,39 +44,43 @@ export default function VerifyPage() {
     setLoading(true);
 
     try {
-      // Try to parse as JSON (QR code data)
-      let data;
+      // Prepare the request payload
+      let payload: { uin?: string; qrData?: string } = {};
+      
       if (qrInput.startsWith("{")) {
-        data = JSON.parse(qrInput);
+        // It's QR code data
+        payload.qrData = qrInput;
       } else {
-        // Assume it's a UIN
-        data = {
-          uin: qrInput,
-          name: "Unknown User",
-          issued: new Date().toISOString(),
-          status: "active",
-          type: "sevispass",
-          version: "1.0",
-        };
+        // It's a UIN
+        payload.uin = qrInput.trim();
       }
 
-      // Simulate verification process
-      setTimeout(() => {
-        const isValid =
-          data.uin && data.uin.startsWith("PNG") && data.type === "sevispass";
+      // Call the real verification API
+      const response = await fetch('/api/sevispass/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
+      const result = await response.json();
+
+      if (result.success && result.verification) {
+        setVerificationResult(result.verification);
+      } else {
         setVerificationResult({
-          valid: isValid,
-          data: isValid ? data : undefined,
-          error: !isValid ? "Invalid SevisPass data or UIN format" : undefined,
+          valid: false,
+          error: result.error || 'Verification failed',
         });
-        setLoading(false);
-      }, 1500);
+      }
     } catch (error) {
+      console.error('Verification error:', error);
       setVerificationResult({
         valid: false,
-        error: "Invalid QR code format. Please check the data and try again.",
+        error: "Network error. Please check your connection and try again.",
       });
+    } finally {
       setLoading(false);
     }
   };
@@ -227,6 +231,82 @@ export default function VerifyPage() {
                   ).toLocaleDateString()}
                 </p>
               </div>
+
+              {(verificationResult.data as any).dateOfBirth && (
+                <div>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Date of Birth
+                  </h4>
+                  <p style={{ fontSize: "14px", margin: 0 }}>
+                    {new Date((verificationResult.data as any).dateOfBirth).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+
+              {(verificationResult.data as any).nationality && (
+                <div>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Nationality
+                  </h4>
+                  <p style={{ fontSize: "14px", margin: 0 }}>
+                    {(verificationResult.data as any).nationality}
+                  </p>
+                </div>
+              )}
+
+              {(verificationResult.data as any).documentNumber && (
+                <div>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Document Number
+                  </h4>
+                  <p style={{ fontSize: "14px", margin: 0, fontFamily: "monospace" }}>
+                    {(verificationResult.data as any).documentNumber}
+                  </p>
+                </div>
+              )}
+
+              {(verificationResult.data as any).expires && (
+                <div>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Expires
+                  </h4>
+                  <p style={{ fontSize: "14px", margin: 0 }}>
+                    {new Date((verificationResult.data as any).expires).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div
@@ -549,7 +629,7 @@ export default function VerifyPage() {
           </ul>
         </div>
 
-        {/* Sample Data for Testing */}
+        {/* Real Database Notice */}
         <div
           style={{
             marginTop: "24px",
@@ -568,25 +648,25 @@ export default function VerifyPage() {
               color: "var(--foreground)",
             }}
           >
-            🧪 Test Data
+            🔒 Real Database Verification
           </h4>
           <p style={{ marginBottom: "12px", color: "var(--muted-foreground)" }}>
-            Try these sample values for testing:
+            This verification system connects to the official Papua New Guinea SevisPass database. 
+            Only valid, issued SevisPass identities will show as verified.
           </p>
           <div
             style={{
-              fontFamily: "monospace",
-              fontSize: "12px",
-              background: "var(--muted)",
-              padding: "12px",
+              background: "rgba(34, 197, 94, 0.1)",
+              border: "1px solid rgba(34, 197, 94, 0.3)",
               borderRadius: "6px",
+              padding: "12px",
+              fontSize: "12px",
+              color: "var(--success)",
             }}
           >
-            <strong>Sample UIN:</strong> PNG1234567890
-            <br />
-            <strong>Sample QR Data:</strong>
-            <br />
-            {`{"uin":"PNG1234567890","name":"John Doe","issued":"2024-01-15T00:00:00Z","status":"active","type":"sevispass","version":"1.0"}`}
+            ✅ Connected to official SevisPass database<br />
+            ✅ Real-time verification status<br />
+            ✅ Secure identity validation
           </div>
         </div>
       </div>
