@@ -74,12 +74,12 @@ async function getRekognitionStreamingClient(): Promise<RekognitionStreamingClie
 // Collection name for storing SevisPass face vectors
 const SEVISPASS_COLLECTION = 'sevispass-faces';
 
-// Confidence thresholds
+// Confidence thresholds - Lowered for easier testing and broader acceptance
 export const CONFIDENCE_THRESHOLDS = {
-  AUTO_APPROVE: 90,
-  MANUAL_REVIEW: 80,
-  REJECT: 80,
-  LOGIN: 85,
+  AUTO_APPROVE: 70,  // Lowered from 90% to 70%
+  MANUAL_REVIEW: 50, // Lowered from 80% to 50% 
+  REJECT: 50,        // Lowered from 80% to 50%
+  LOGIN: 60,         // Lowered from 85% to 60%
 } as const;
 
 /**
@@ -188,7 +188,7 @@ export async function compareFaces(
     const command = new CompareFacesCommand({
       SourceImage: { Bytes: sourceImageBytes },
       TargetImage: { Bytes: targetImageBytes },
-      SimilarityThreshold: 70, // Minimum threshold for comparison
+      SimilarityThreshold: 50, // Minimum threshold for comparison - lowered from 70% to 50%
     });
 
     const response = await rekognitionClient.send(command);
