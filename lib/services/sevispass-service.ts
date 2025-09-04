@@ -200,8 +200,7 @@ export class SevisPassService {
           const urlResult = await runWithAmplifyServerContext({
             nextServerContext: null,
             operation: (contextSpec) => getUrl(contextSpec, {
-              key: holder.photoImageKey,
-              options: { accessLevel: 'guest' }
+              path: holder.photoImageKey
             })
           });
           photoUrl = urlResult.url.toString();
