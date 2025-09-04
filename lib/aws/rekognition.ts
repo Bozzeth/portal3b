@@ -614,7 +614,7 @@ export async function analyzeIdentityDocument(
     });
 
     const response = await textractClient.send(command);
-    const documents = response.Documents || [];
+    const documents = (response as any).Documents || [];
     
     if (documents.length === 0) {
       return {

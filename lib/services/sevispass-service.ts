@@ -115,7 +115,7 @@ export class SevisPassService {
           console.log('Cookies client create succeeded:', !!data);
         } catch (cookiesError) {
           console.error('Cookies client also failed:', cookiesError);
-          throw new Error(`Failed to save application - Public: ${publicError.message}, Cookies: ${cookiesError.message}`);
+          throw new Error(`Failed to save application - Public: ${(publicError as any)?.message || publicError}, Cookies: ${(cookiesError as any)?.message || cookiesError}`);
         }
       }
       console.log('DynamoDB SevisPassApplication created successfully');
@@ -134,7 +134,7 @@ export class SevisPassService {
           nationality: applicationData.extractedInfo.nationality,
           issuedAt: applicationData.issuedAt!,
           expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
-          status: 'active', // Explicitly set default status
+          status: 'active' as const, // Explicitly set default status with proper type
           faceId: applicationData.verificationData.faceId,
           documentImageKey: documentKey,
           photoImageKey: selfieKey,
@@ -154,7 +154,7 @@ export class SevisPassService {
             console.log('Cookies client holder create succeeded:', !!holderData);
           } catch (cookiesError) {
             console.error('Cookies client holder also failed:', cookiesError);
-            throw new Error(`Failed to save holder - Public: ${publicError.message}, Cookies: ${cookiesError.message}`);
+            throw new Error(`Failed to save holder - Public: ${(publicError as any)?.message || publicError}, Cookies: ${(cookiesError as any)?.message || cookiesError}`);
           }
         }
         console.log('SevisPassHolder record created successfully');
