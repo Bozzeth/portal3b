@@ -78,7 +78,7 @@ export class SevisPassService {
       console.log('S3 uploads completed');
 
       console.log('Starting DynamoDB SevisPassApplication create');
-      // Save to DynamoDB using server cookies client with API key auth for unauthenticated creation
+      // Save to DynamoDB using server cookies client for authenticated users
       await cookiesClient.models.SevisPassApplication.create({
         userId,
         applicationId: applicationData.applicationId,
@@ -99,8 +99,6 @@ export class SevisPassService {
         rejectionReason: applicationData.rejectionReason,
         reviewedBy: applicationData.reviewedBy,
         reviewedAt: applicationData.reviewedAt,
-      }, {
-        authMode: 'apiKey'
       });
       console.log('DynamoDB SevisPassApplication created successfully');
 
@@ -120,8 +118,6 @@ export class SevisPassService {
           faceId: applicationData.verificationData.faceId,
           documentImageKey: documentKey,
           photoImageKey: selfieKey,
-        }, {
-          authMode: 'apiKey'
         });
         console.log('SevisPassHolder record created successfully');
       }

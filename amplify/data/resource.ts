@@ -42,7 +42,6 @@ const schema = a.schema({
       reviewedAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.publicApiKey().to(['create']),
       allow.owner().to(['create', 'read', 'update']),
       allow.groupDefinedIn('reviewedBy').to(['read', 'update']),
       allow.group('ADMIN').to(['read', 'update']),
@@ -66,10 +65,9 @@ const schema = a.schema({
       photoImageKey: a.string(),
     })
     .authorization((allow) => [
-      allow.publicApiKey().to(['create']),
       allow.owner().to(['read']),
-      allow.group('ADMIN').to(['read', 'update']),
-      allow.group('DICT_OFFICER').to(['read'])
+      allow.group('ADMIN').to(['read', 'update', 'create']),
+      allow.group('DICT_OFFICER').to(['read', 'create'])
     ])
     .identifier(['uin']),
 });

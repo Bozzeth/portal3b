@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySevisPassRegistration, base64ToUint8Array, extractTextFromDocument } from '@/lib/aws/rekognition';
 import { generateUIN, generateApplicationId } from '@/lib/utils/sevispass';
 import { SevisPassService } from '@/lib/services/sevispass-service';
-import { fetchAuthSession } from 'aws-amplify/auth';
+import { AuthGetCurrentUserServer } from '@/lib/utils/amplifyServerUtils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,27 +57,16 @@ export async function POST(req: NextRequest) {
     // Generate application ID
     const applicationId = generateApplicationId();
     
-    // Get user ID from JWT token
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Get current authenticated user
+    const currentUser = await AuthGetCurrentUserServer();
+    if (!currentUser || !currentUser.userId) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
-
-    const token = authHeader.slice(7);
-    let userId: string;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      userId = payload.sub || payload['cognito:username'];
-      if (!userId) throw new Error('No user ID in token');
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid authentication token' },
-        { status: 401 }
-      );
-    }
+    
+    const userId = currentUser.userId;
 
     console.log('Starting SevisPass verification');
     // Verify the registration
