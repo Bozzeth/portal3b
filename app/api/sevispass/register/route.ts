@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
         },
         uin: finalUIN,
         issuedAt: new Date().toISOString()
-      }, documentImage, selfieImage, req, token);
+      }, documentImage, selfieImage, req);
       console.log('Application saved successfully');
       
       return NextResponse.json({
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
           confidence: verificationResult.confidence,
           requiresManualReview: true
         }
-      }, documentImage, selfieImage, req, token);
+      }, documentImage, selfieImage, req);
       console.log('Review application saved successfully');
       
       return NextResponse.json({
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
           requiresManualReview: false
         },
         rejectionReason: verificationResult.error || 'Verification failed - insufficient confidence score'
-      }, documentImage, selfieImage, req, token);
+      }, documentImage, selfieImage, req);
       console.log('Rejected application saved successfully');
       
       return NextResponse.json({
