@@ -30,5 +30,5 @@ const rekognitionPolicy = new PolicyStatement({
 });
 
 // Add policy to both authenticated and unauthenticated roles
-backend.auth.resources.authenticatedUserIamRole.addToPolicy(rekognitionPolicy);
-backend.auth.resources.unauthenticatedUserIamRole.addToPolicy(rekognitionPolicy);
+backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(rekognitionPolicy);
+backend.auth.resources.unauthenticatedUserIamRole.addToPrincipalPolicy(rekognitionPolicy);
