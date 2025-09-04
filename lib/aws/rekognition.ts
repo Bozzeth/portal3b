@@ -148,18 +148,27 @@ export async function detectFaces(imageBytes: Uint8Array): Promise<{
 
     const face = faces[0];
     
-    // Check face quality requirements
+    // Check face quality requirements - Relaxed for better accessibility
     const quality = face.Quality;
     const isGoodQuality = 
-      (quality?.Brightness || 0) >= 20 &&
-      (quality?.Brightness || 0) <= 80 &&
-      (quality?.Sharpness || 0) >= 20 &&
-      (face.Confidence || 0) >= 90;
+      (quality?.Brightness || 0) >= 10 &&  // Lowered from 20 - accept darker images
+      (quality?.Brightness || 0) <= 90 &&  // Raised from 80 - accept brighter images
+      (quality?.Sharpness || 0) >= 10 &&   // Lowered from 20 - accept slightly blurry images
+      (face.Confidence || 0) >= 70;        // Lowered from 90 - more lenient face detection
+
+    if (!isGoodQuality) {
+      console.log('Face quality check failed:', {
+        brightness: quality?.Brightness || 0,
+        sharpness: quality?.Sharpness || 0,
+        confidence: face.Confidence || 0,
+        requirements: { minBrightness: 10, maxBrightness: 90, minSharpness: 10, minConfidence: 70 }
+      });
+    }
 
     return {
       faces,
       isGoodQuality,
-      error: isGoodQuality ? undefined : 'Image quality is too poor. Please ensure good lighting and focus'
+      error: isGoodQuality ? undefined : `Image quality insufficient. Brightness: ${quality?.Brightness || 0}, Sharpness: ${quality?.Sharpness || 0}, Face Confidence: ${face.Confidence || 0}`
     };
   } catch (error) {
     console.error('Error detecting faces:', error);
@@ -514,14 +523,26 @@ export async function verifySevisPassRegistration(
     const selfieFaceResult = await detectFaces(selfieBytes);
     const documentFaceResult = await detectFaces(documentBytes);
 
-    if (!selfieFaceResult.isGoodQuality || !documentFaceResult.isGoodQuality) {
+    // Log quality issues for debugging but don't immediately fail
+    if (!selfieFaceResult.isGoodQuality) {
+      console.log('Selfie quality warning:', selfieFaceResult.error);
+    }
+    if (!documentFaceResult.isGoodQuality) {
+      console.log('Document quality warning:', documentFaceResult.error);
+    }
+
+    // Only fail if we can't detect any faces at all
+    if (selfieFaceResult.faces.length === 0 || documentFaceResult.faces.length === 0) {
       return {
         approved: false,
         confidence: 0,
         requiresManualReview: false,
-        error: 'Image quality is insufficient for verification'
+        error: 'Could not detect faces in images. Please ensure face is clearly visible.'
       };
     }
+
+    // If quality is poor but faces are detected, proceed but require manual review
+    const hasQualityIssues = !selfieFaceResult.isGoodQuality || !documentFaceResult.isGoodQuality;
 
     // 2. Compare faces
     const comparisonResult = await compareFaces(selfieBytes, documentBytes);
@@ -537,9 +558,19 @@ export async function verifySevisPassRegistration(
 
     const confidence = comparisonResult.similarity;
 
-    // 3. Determine approval status
-    if (confidence >= CONFIDENCE_THRESHOLDS.AUTO_APPROVE) {
-      // Auto-approve and index face
+    // 3. Determine approval status based on confidence and quality
+    if (hasQualityIssues && confidence >= CONFIDENCE_THRESHOLDS.MANUAL_REVIEW) {
+      // If quality issues but reasonable confidence, require manual review
+      return {
+        approved: false,
+        confidence,
+        requiresManualReview: true,
+        error: 'Image quality requires manual review'
+      };
+    }
+
+    if (confidence >= CONFIDENCE_THRESHOLDS.AUTO_APPROVE && !hasQualityIssues) {
+      // Auto-approve only if both confidence and quality are good
       const indexResult = await indexFace(selfieBytes, uin);
       
       return {
@@ -549,7 +580,7 @@ export async function verifySevisPassRegistration(
         faceId: indexResult.faceId,
       };
     } else if (confidence >= CONFIDENCE_THRESHOLDS.MANUAL_REVIEW) {
-      // Requires manual review but don't index yet
+      // Requires manual review
       return {
         approved: false,
         confidence,
