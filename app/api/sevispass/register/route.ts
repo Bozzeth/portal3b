@@ -69,94 +69,94 @@ export async function POST(req: NextRequest) {
         
         const userId = currentUser.userId;
 
-    console.log('Starting SevisPass verification');
-    // Verify the registration
-    const verificationResult = await verifySevisPassRegistration(
-      selfieImage,
-      documentImage,
-      generateUIN() // Generate temporary UIN for verification
-    );
-    console.log('Verification completed:', verificationResult);
+        console.log('Starting SevisPass verification');
+        // Verify the registration
+        const verificationResult = await verifySevisPassRegistration(
+          selfieImage,
+          documentImage,
+          generateUIN() // Generate temporary UIN for verification
+        );
+        console.log('Verification completed:', verificationResult);
 
-    if (verificationResult.approved) {
-      // Auto-approved - generate final UIN and save
-      const finalUIN = generateUIN();
-      
-        console.log('Saving approved application');
-        await SevisPassService.saveApplication(userId, {
-          applicationId,
-          status: 'approved',
-          submittedAt: new Date().toISOString(),
-          documentType,
-          extractedInfo,
-          verificationData: {
+        if (verificationResult.approved) {
+          // Auto-approved - generate final UIN and save
+          const finalUIN = generateUIN();
+          
+          console.log('Saving approved application');
+          await SevisPassService.saveApplication(userId, {
+            applicationId,
+            status: 'approved',
+            submittedAt: new Date().toISOString(),
+            documentType,
+            extractedInfo,
+            verificationData: {
+              confidence: verificationResult.confidence,
+              requiresManualReview: false,
+              faceId: verificationResult.faceId
+            },
+            uin: finalUIN,
+            issuedAt: new Date().toISOString()
+          }, documentImage, selfieImage, contextSpec);
+          console.log('Application saved successfully');
+          
+          return {
+            success: true,
+            uin: finalUIN,
+            status: 'approved',
             confidence: verificationResult.confidence,
-            requiresManualReview: false,
-            faceId: verificationResult.faceId
-          },
-          uin: finalUIN,
-          issuedAt: new Date().toISOString()
-        }, documentImage, selfieImage, contextSpec);
-        console.log('Application saved successfully');
-        
-        return {
-          success: true,
-          uin: finalUIN,
-          status: 'approved',
-          confidence: verificationResult.confidence,
-          extractedInfo,
-          message: 'SevisPass approved successfully'
-        };
-    } else if (verificationResult.requiresManualReview) {
-        // Requires manual review - save to review queue
-        console.log('Saving application for manual review');
-        await SevisPassService.saveApplication(userId, {
-          applicationId,
-          status: 'under_review',
-          submittedAt: new Date().toISOString(),
-          documentType,
-          extractedInfo,
-          verificationData: {
+            extractedInfo,
+            message: 'SevisPass approved successfully'
+          };
+        } else if (verificationResult.requiresManualReview) {
+          // Requires manual review - save to review queue
+          console.log('Saving application for manual review');
+          await SevisPassService.saveApplication(userId, {
+            applicationId,
+            status: 'under_review',
+            submittedAt: new Date().toISOString(),
+            documentType,
+            extractedInfo,
+            verificationData: {
+              confidence: verificationResult.confidence,
+              requiresManualReview: true
+            }
+          }, documentImage, selfieImage, contextSpec);
+          console.log('Review application saved successfully');
+          
+          return {
+            success: true,
+            applicationId: applicationId,
+            status: 'under_review',
             confidence: verificationResult.confidence,
-            requiresManualReview: true
-          }
-        }, documentImage, selfieImage, contextSpec);
-        console.log('Review application saved successfully');
-        
-        return {
-          success: true,
-          applicationId: applicationId,
-          status: 'under_review',
-          confidence: verificationResult.confidence,
-          extractedInfo,
-          message: 'Application submitted for manual review'
-        };
-    } else {
-        // Rejected - still save for audit trail
-        console.log('Saving rejected application');
-        await SevisPassService.saveApplication(userId, {
-          applicationId,
-          status: 'rejected',
-          submittedAt: new Date().toISOString(),
-          documentType,
-          extractedInfo,
-          verificationData: {
+            extractedInfo,
+            message: 'Application submitted for manual review'
+          };
+        } else {
+          // Rejected - still save for audit trail
+          console.log('Saving rejected application');
+          await SevisPassService.saveApplication(userId, {
+            applicationId,
+            status: 'rejected',
+            submittedAt: new Date().toISOString(),
+            documentType,
+            extractedInfo,
+            verificationData: {
+              confidence: verificationResult.confidence,
+              requiresManualReview: false
+            },
+            rejectionReason: verificationResult.error || 'Verification failed - insufficient confidence score'
+          }, documentImage, selfieImage, contextSpec);
+          console.log('Rejected application saved successfully');
+          
+          return {
+            success: false,
+            status: 'rejected',
             confidence: verificationResult.confidence,
-            requiresManualReview: false
-          },
-          rejectionReason: verificationResult.error || 'Verification failed - insufficient confidence score'
-        }, documentImage, selfieImage, contextSpec);
-        console.log('Rejected application saved successfully');
-        
-        return {
-          success: false,
-          status: 'rejected',
-          confidence: verificationResult.confidence,
-          extractedInfo,
-          error: verificationResult.error || 'Verification failed',
-          message: 'Application rejected due to insufficient verification confidence'
-        };
-      }
+            extractedInfo,
+            error: verificationResult.error || 'Verification failed',
+            message: 'Application rejected due to insufficient verification confidence'
+          };
+        }
     });
     
     return NextResponse.json(result);
