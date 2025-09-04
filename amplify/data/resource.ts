@@ -43,7 +43,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.owner().to(['create', 'read', 'update']),
-      allow.groupsOfField('reviewedBy').to(['read', 'update']),
+      allow.groupOf('reviewedBy').to(['read', 'update']),
       allow.group('ADMIN').to(['read', 'update']),
       allow.group('DICT_OFFICER').to(['read', 'update'])
     ])
@@ -59,7 +59,7 @@ const schema = a.schema({
       nationality: a.string().default('Papua New Guinea'),
       issuedAt: a.datetime().required(),
       expiryDate: a.datetime(),
-      status: a.enum(['active', 'suspended', 'revoked']).default('active'),
+      status: a.enum(['active', 'suspended', 'revoked']),
       faceId: a.string(), // AWS Rekognition face ID for login
       documentImageKey: a.string(),
       photoImageKey: a.string(),
@@ -78,9 +78,6 @@ export const data = defineData({
   schema,
   authorizationModes: {
     defaultAuthorizationMode: "userPool",
-    userPoolAuthorizationMode: {
-      userPoolId: "default",
-    },
     apiKeyAuthorizationMode: {
       expiresInDays: 30,
     },
