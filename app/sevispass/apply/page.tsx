@@ -134,7 +134,7 @@ function SevisPassContent() {
         marginBottom: '32px'
       }}>
         <div style={{
-          background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
+          background: 'var(--primary)',
           borderRadius: '16px',
           padding: '32px',
           color: 'white',

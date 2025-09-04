@@ -26,14 +26,14 @@ export async function GET(_request: NextRequest) {
 
         // Check session and credentials
         const session = await fetchAuthSession(contextSpec, { forceRefresh: true });
-        
+
         return {
           user: userResult,
           session: {
             hasCredentials: !!session.credentials,
             identityId: session.identityId,
             // Check if identity ID indicates authenticated or unauthenticated
-            identityType: session.identityId?.includes(':') ? 
+            identityType: session.identityId?.includes(':') ?
               (session.identityId.split(':')[1].length > 20 ? 'authenticated' : 'unauthenticated') : 'unknown',
             tokens: {
               hasAccessToken: !!session.tokens?.accessToken,

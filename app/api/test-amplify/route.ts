@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { Amplify } from 'aws-amplify';
 import { fetchAuthSession } from 'aws-amplify/auth/server';
 import { runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
 import outputs from '@/amplify_outputs.json';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Test Amplify configuration
     const config = Amplify.getConfig();
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // Test server context
     const result = await runWithAmplifyServerContext({
-      nextServerContext: { request },
+      nextServerContext: { cookies },
       operation: async (contextSpec) => {
         try {
           const session = await fetchAuthSession(contextSpec);
@@ -82,4 +83,8 @@ export async function GET(request: NextRequest) {
       amplifyConfigured: false
     }, { status: 500 });
   }
+}
+
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

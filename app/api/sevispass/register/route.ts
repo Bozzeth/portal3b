@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       nextServerContext: { cookies },
       operation: async (contextSpec) => {
         console.log("Starting intelligent document analysis");
-        // Use Textract AnalyzeID for intelligent identity document analysis
+        // Use Rekognition DetectText with enhanced parsing for PNG identity documents
         const documentBytes = base64ToUint8Array(documentImage);
         const idAnalysisResult = await analyzeIdentityDocument(
           documentBytes,

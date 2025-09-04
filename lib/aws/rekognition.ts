@@ -10,17 +10,11 @@ import {
   SearchFacesByImageCommand,
   DeleteFacesCommand,
   ListCollectionsCommand,
+  DetectTextCommand,
   type Face,
   type ComparedFace,
   type FaceMatch
 } from '@aws-sdk/client-rekognition';
-import {
-  TextractClient,
-  DetectDocumentTextCommand,
-  AnalyzeDocumentCommand,
-  AnalyzeIDCommand,
-  type Block
-} from '@aws-sdk/client-textract';
 import {
   RekognitionStreamingClient,
   StartFaceLivenessSessionCommand,
@@ -132,18 +126,6 @@ async function getRekognitionStreamingClient(contextSpec?: any): Promise<Rekogni
     : await getAmplifyCredentials();
 
   return new RekognitionStreamingClient({
-    region,
-    credentials,
-  });
-}
-
-// Initialize Textract client with Amplify credentials
-async function getTextractClient(contextSpec?: any): Promise<TextractClient> {
-  const { region, credentials } = contextSpec
-    ? await getAmplifyCredentialsServer(contextSpec)
-    : await getAmplifyCredentials();
-
-  return new TextractClient({
     region,
     credentials,
   });
@@ -432,7 +414,7 @@ export async function removeFaceFromCollection(faceId: string): Promise<boolean>
 }
 
 /**
- * Detect text in images (wrapper for API compatibility - now uses Textract)
+ * Detect text in images (wrapper for API compatibility)
  */
 export async function detectText(imageBytes: Buffer, contextSpec?: any): Promise<any[]> {
   try {
@@ -446,7 +428,7 @@ export async function detectText(imageBytes: Buffer, contextSpec?: any): Promise
 }
 
 /**
- * Extract text from identity documents using AWS Textract
+ * Extract text from identity documents
  */
 export async function extractTextFromDocument(
   imageBytes: Uint8Array,
@@ -458,29 +440,18 @@ export async function extractTextFromDocument(
   error?: string;
 }> {
   try {
-    const textractClient = await getTextractClient(contextSpec);
-    
-    // Use Textract's DetectDocumentText for simple text detection
-    const command = new DetectDocumentTextCommand({
-      Document: { Bytes: imageBytes },
+    const rekognitionClient = await getRekognitionClient(contextSpec);
+    const command = new DetectTextCommand({
+      Image: { Bytes: imageBytes },
     });
 
-    const response = await textractClient.send(command);
-    const blocks = response.Blocks || [];
-
-    // Convert Textract blocks to Rekognition-compatible format for backward compatibility
-    const textDetections = blocks
-      .filter(block => block.BlockType === 'LINE')
-      .map(block => ({
-        Type: 'LINE',
-        DetectedText: block.Text || '',
-        Confidence: block.Confidence || 0,
-        Geometry: block.Geometry
-      }));
+    const response = await rekognitionClient.send(command);
+    const textDetections = response.TextDetections || [];
 
     // Extract all detected text
     const extractedText = textDetections
-      .map(detection => detection.DetectedText)
+      .filter(detection => detection.Type === 'LINE')
+      .map(detection => detection.DetectedText || '')
       .join('\n');
 
     return {
@@ -500,91 +471,8 @@ export async function extractTextFromDocument(
 }
 
 /**
- * Advanced document analysis using Textract AnalyzeDocument
- * Extracts structured data from documents like forms and key-value pairs
- */
-export async function analyzeDocument(
-  imageBytes: Uint8Array,
-  contextSpec?: any
-): Promise<{
-  keyValuePairs: { [key: string]: string };
-  tables: any[];
-  text: string;
-  success: boolean;
-  error?: string;
-}> {
-  try {
-    const textractClient = await getTextractClient(contextSpec);
-    
-    const command = new AnalyzeDocumentCommand({
-      Document: { Bytes: imageBytes },
-      FeatureTypes: ['FORMS', 'TABLES'], // Extract forms and tables
-    });
-
-    const response = await textractClient.send(command);
-    const blocks = response.Blocks || [];
-
-    // Extract key-value pairs
-    const keyValuePairs: { [key: string]: string } = {};
-    const keyBlocks = blocks.filter(block => block.BlockType === 'KEY_VALUE_SET' && block.EntityTypes?.includes('KEY'));
-    
-    for (const keyBlock of keyBlocks) {
-      if (keyBlock.Relationships) {
-        const valueRelationship = keyBlock.Relationships.find(rel => rel.Type === 'VALUE');
-        const childRelationship = keyBlock.Relationships.find(rel => rel.Type === 'CHILD');
-        
-        if (valueRelationship && childRelationship) {
-          const keyText = childRelationship.Ids?.map(id => {
-            const childBlock = blocks.find(b => b.Id === id);
-            return childBlock?.Text || '';
-          }).join(' ').trim();
-          
-          const valueId = valueRelationship.Ids?.[0];
-          const valueBlock = blocks.find(b => b.Id === valueId);
-          const valueChildIds = valueBlock?.Relationships?.find(rel => rel.Type === 'CHILD')?.Ids;
-          
-          const valueText = valueChildIds?.map(id => {
-            const childBlock = blocks.find(b => b.Id === id);
-            return childBlock?.Text || '';
-          }).join(' ').trim();
-          
-          if (keyText && valueText) {
-            keyValuePairs[keyText] = valueText;
-          }
-        }
-      }
-    }
-
-    // Extract tables (simplified)
-    const tables = blocks.filter(block => block.BlockType === 'TABLE');
-
-    // Extract all text
-    const text = blocks
-      .filter(block => block.BlockType === 'LINE')
-      .map(block => block.Text || '')
-      .join('\n');
-
-    return {
-      keyValuePairs,
-      tables,
-      text,
-      success: true,
-    };
-  } catch (error) {
-    console.error('Error analyzing document:', error);
-    return {
-      keyValuePairs: {},
-      tables: [],
-      text: '',
-      success: false,
-      error: 'Failed to analyze document'
-    };
-  }
-}
-
-/**
- * Analyze identity documents using Textract AnalyzeID
- * Specifically designed for extracting structured data from identity documents
+ * Analyze identity documents using Rekognition DetectText with intelligent parsing
+ * Enhanced text extraction and parsing specifically for PNG identity documents
  */
 export async function analyzeIdentityDocument(
   imageBytes: Uint8Array,
@@ -603,108 +491,183 @@ export async function analyzeIdentityDocument(
   error?: string;
 }> {
   try {
-    const textractClient = await getTextractClient(contextSpec);
+    const rekognitionClient = await getRekognitionClient(contextSpec);
     
-    const command = new AnalyzeIDCommand({
-      DocumentPages: [
-        {
-          Bytes: imageBytes,
-        },
-      ],
+    const command = new DetectTextCommand({
+      Image: { Bytes: imageBytes },
+      Filters: {
+        WordFilter: {
+          MinConfidence: 60
+        }
+      }
     });
 
-    const response = await textractClient.send(command);
-    const documents = (response as any).Documents || [];
-    
-    if (documents.length === 0) {
+    const response = await rekognitionClient.send(command);
+    const textDetections = response.TextDetections || [];
+
+    // Extract all detected text
+    const allText = textDetections
+      .filter(detection => detection.Type === 'LINE' && detection.DetectedText)
+      .map(detection => detection.DetectedText!)
+      .join('\n');
+
+    console.log('Rekognition detected text:', allText);
+
+    if (!allText) {
       return {
         extractedData: {},
         success: false,
-        error: 'No identity document detected'
+        error: 'No text detected in document'
       };
     }
 
-    const document = documents[0];
-    const identityDocumentFields = document.IdentityDocumentFields || [];
-    
-    // Extract structured data from the identity document
+    // Initialize extracted data
     const extractedData: any = {};
-    
-    for (const field of identityDocumentFields) {
-      const fieldType = field.Type?.Text?.toLowerCase();
-      const fieldValue = field.ValueDetection?.Text;
-      
-      if (!fieldType || !fieldValue) continue;
-      
-      // Map common identity document fields
-      switch (fieldType) {
-        case 'first_name':
-        case 'first name':
-        case 'given_name':
-        case 'given name':
-          extractedData.firstName = fieldValue;
-          break;
-        case 'last_name':
-        case 'last name':
-        case 'surname':
-        case 'family_name':
-        case 'family name':
-          extractedData.lastName = fieldValue;
-          break;
-        case 'full_name':
-        case 'full name':
-        case 'name':
-          extractedData.fullName = fieldValue;
-          break;
-        case 'date_of_birth':
-        case 'date of birth':
-        case 'birth_date':
-        case 'birth date':
-        case 'dob':
-          extractedData.dateOfBirth = fieldValue;
-          break;
-        case 'document_number':
-        case 'document number':
-        case 'id_number':
-        case 'id number':
-        case 'passport_number':
-        case 'passport number':
-          extractedData.documentNumber = fieldValue;
-          break;
-        case 'nationality':
-        case 'country':
-        case 'country_of_birth':
-          extractedData.nationality = fieldValue;
-          break;
-        case 'document_type':
-        case 'document type':
-          extractedData.documentType = fieldValue;
-          break;
-      }
-    }
-    
-    // If we have firstName and lastName but no fullName, construct it
-    if (!extractedData.fullName && extractedData.firstName && extractedData.lastName) {
-      extractedData.fullName = `${extractedData.firstName} ${extractedData.lastName}`;
-    }
-    
-    // If we have fullName but no firstName/lastName, try to split it
-    if (extractedData.fullName && (!extractedData.firstName || !extractedData.lastName)) {
-      const nameParts = extractedData.fullName.trim().split(/\s+/);
-      if (nameParts.length >= 2) {
-        extractedData.firstName = nameParts[0];
-        extractedData.lastName = nameParts[nameParts.length - 1];
+
+    // Parse PNG passport MRZ format (Machine Readable Zone)
+    // Format: P<PNGLASTNAME<<FIRSTNAME<MIDDLENAME<<<<<
+    const mrzMatch = allText.match(/P<PNG([A-Z][^<\s]*?)(<+)([A-Z][^<\s]*?)(<*)([A-Z][^<\s]*?)?(<*)/i);
+    if (mrzMatch) {
+      const lastName = mrzMatch[1].trim();
+      const firstName = mrzMatch[3].trim();
+      const middleName = mrzMatch[5] ? mrzMatch[5].trim() : '';
+
+      if (lastName && firstName) {
+        extractedData.lastName = lastName;
+        extractedData.firstName = firstName;
+        if (middleName) extractedData.middleName = middleName;
+
+        extractedData.fullName = middleName
+          ? `${firstName} ${middleName} ${lastName}`
+          : `${firstName} ${lastName}`;
+
+        extractedData.nationality = 'Papua New Guinea';
+        extractedData.documentType = 'Passport';
+
+        console.log('MRZ parsing successful:', { lastName, firstName, middleName, fullName: extractedData.fullName });
       }
     }
 
-    console.log('AnalyzeID extracted data:', extractedData);
-    
+    // If MRZ parsing failed, try other name extraction methods
+    if (!extractedData.fullName) {
+      // Look for common name patterns in PNG documents
+      const namePatterns = [
+        /(?:Full\s*)?Name[:\s]+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)+)/i,
+        /Given\s*Name[:\s]+([A-Z][A-Za-z]+)[\s\n]+(?:Family\s*Name|Surname)[:\s]+([A-Z][A-Za-z]+)/i,
+        /^([A-Z][A-Z]+)\s+([A-Z][A-Z]+)(?:\s+([A-Z][A-Z]+))?\s*$/m, // All caps names on separate line
+      ];
+
+      for (const pattern of namePatterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          if (pattern.source.includes('Given')) {
+            // Given name + surname pattern
+            extractedData.firstName = match[1].trim();
+            extractedData.lastName = match[2].trim();
+            extractedData.fullName = `${extractedData.firstName} ${extractedData.lastName}`;
+          } else if (match.length === 4) {
+            // All caps names pattern (firstName lastName middleName)
+            const firstName = match[1].trim();
+            const lastName = match[2].trim();
+            const middleName = match[3] ? match[3].trim() : '';
+            
+            // Validate names don't contain document keywords
+            const invalidKeywords = ['TYPE', 'PASSPORT', 'DOCUMENT', 'PNG', 'REPUBLIC'];
+            const isValidName = ![firstName, lastName, middleName].some(name => 
+              name && invalidKeywords.some(keyword => name.includes(keyword))
+            );
+            
+            if (isValidName && firstName.length > 1 && lastName.length > 1) {
+              extractedData.firstName = firstName;
+              extractedData.lastName = lastName;
+              if (middleName) extractedData.middleName = middleName;
+              
+              extractedData.fullName = middleName
+                ? `${firstName} ${middleName} ${lastName}`
+                : `${firstName} ${lastName}`;
+            }
+          } else {
+            // Full name pattern
+            const nameValue = match[1].trim();
+            const invalidKeywords = ['TYPE', 'PASSPORT', 'DOCUMENT', 'ASSEPORT', 'REPUBLIC'];
+            const isValidName = !invalidKeywords.some(keyword => nameValue.includes(keyword));
+            
+            if (isValidName && nameValue.length > 3 && nameValue.includes(' ')) {
+              extractedData.fullName = nameValue;
+              // Try to split into parts
+              const parts = nameValue.split(/\s+/);
+              if (parts.length >= 2) {
+                extractedData.firstName = parts[0];
+                extractedData.lastName = parts[parts.length - 1];
+              }
+            }
+          }
+
+          if (extractedData.fullName) {
+            console.log('Pattern matching successful:', extractedData.fullName);
+            break;
+          }
+        }
+      }
+    }
+
+    // Extract document number
+    if (!extractedData.documentNumber) {
+      const docPatterns = [
+        /Passport\s*(?:No|Number)[:\s]+([A-Z0-9]+)/i,
+        /Document\s*(?:No|Number)[:\s]+([A-Z0-9]+)/i,
+        /([A-Z]{1,2}\d{6,9})/g, // PNG passport format
+        /P<PNG[^<]+<<[^<]+<?[^<]*<*[\r\n]+([A-Z0-9]{8,9})/i // MRZ second line
+      ];
+
+      for (const pattern of docPatterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          extractedData.documentNumber = match[1];
+          console.log('Document number found:', extractedData.documentNumber);
+          break;
+        }
+      }
+    }
+
+    // Extract date of birth
+    if (!extractedData.dateOfBirth) {
+      const datePatterns = [
+        /Date\s*of\s*Birth[:\s]+(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i,
+        /DOB[:\s]+(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i,
+        /Born[:\s]+(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i,
+        /(\d{1,2}[-/]\d{1,2}[-/]\d{4})/g
+      ];
+
+      for (const pattern of datePatterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          const dateStr = match[1];
+          // Convert to YYYY-MM-DD format
+          const dateParts = dateStr.split(/[-/]/);
+          if (dateParts.length === 3) {
+            const [day, month, year] = dateParts;
+            extractedData.dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            console.log('Date of birth found:', extractedData.dateOfBirth);
+            break;
+          }
+        }
+      }
+    }
+
+    // Set default nationality for PNG documents
+    if (!extractedData.nationality && (allText.includes('PNG') || allText.includes('Papua New Guinea'))) {
+      extractedData.nationality = 'Papua New Guinea';
+    }
+
+    console.log('Rekognition ID analysis result:', extractedData);
+
     return {
       extractedData,
-      success: true,
+      success: Object.keys(extractedData).length > 0,
     };
   } catch (error) {
-    console.error('Error analyzing identity document:', error);
+    console.error('Error analyzing identity document with Rekognition:', error);
     return {
       extractedData: {},
       success: false,

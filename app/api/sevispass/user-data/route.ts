@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SevisPassService } from '@/lib/services/sevispass-service';
+import { publicServerClient } from '@/lib/utils/amplifyServerUtils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +25,36 @@ export async function GET(request: NextRequest) {
     }
     
     // Check for approved SevisPass first
-    const sevisPassHolder = await SevisPassService.getSevisPassHolder(userId);
+    let sevisPassHolder = await SevisPassService.getSevisPassHolder(userId);
+    
+    // If no holder found with userId, also check recent guest applications
+    // This handles cases where registration used a guest ID but user is now authenticated
+    if (!sevisPassHolder) {
+      console.log('No SevisPass found for user ID, checking recent applications...');
+      // Get all recent applications (last 24 hours) to see if any could belong to this user
+      const { data: recentApplications } = await publicServerClient.models.SevisPassApplication.list();
+      
+      if (recentApplications) {
+        const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const recentApproved = recentApplications.filter(app => 
+          app.status === 'approved' && 
+          app.submittedAt > last24Hours &&
+          app.uin
+        );
+        
+        console.log(`Found ${recentApproved.length} recent approved applications`);
+        
+        // If there's exactly one recent approved application, assume it belongs to this user
+        if (recentApproved.length === 1) {
+          const app = recentApproved[0];
+          console.log('Assuming recent application belongs to current user:', app.applicationId);
+          
+          // Try to get the holder record for this UIN
+          const { data: holders } = await publicServerClient.models.SevisPassHolder.list();
+          sevisPassHolder = holders?.find(h => h.uin === app.uin);
+        }
+      }
+    }
     
     if (sevisPassHolder) {
       // User has an approved SevisPass
@@ -37,7 +67,51 @@ export async function GET(request: NextRequest) {
     }
     
     // Check for application
-    const application = await SevisPassService.getApplication(userId);
+    let application = await SevisPassService.getApplication(userId);
+    
+    // If no application found with userId, check recent applications
+    if (!application) {
+      console.log('No application found for user ID, checking recent applications...');
+      const { data: recentApplications } = await publicServerClient.models.SevisPassApplication.list();
+      
+      if (recentApplications) {
+        const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const userRecentApps = recentApplications.filter(app => 
+          app.submittedAt > last24Hours && 
+          (app.status === 'under_review' || app.status === 'pending' || app.status === 'rejected')
+        );
+        
+        console.log(`Found ${userRecentApps.length} recent applications`);
+        
+        // If there's exactly one recent application, assume it belongs to this user
+        if (userRecentApps.length === 1) {
+          const app = userRecentApps[0];
+          console.log('Assuming recent application belongs to current user:', app.applicationId);
+          application = {
+            applicationId: app.applicationId,
+            status: app.status as 'pending' | 'under_review' | 'approved' | 'rejected',
+            submittedAt: app.submittedAt,
+            documentType: app.documentType,
+            extractedInfo: {
+              fullName: app.fullName || '',
+              dateOfBirth: app.dateOfBirth || '',
+              documentNumber: app.documentNumber || '',
+              nationality: app.nationality || 'Papua New Guinea',
+            },
+            verificationData: {
+              confidence: app.confidence || 0,
+              requiresManualReview: app.requiresManualReview || false,
+              faceId: app.faceId || undefined,
+            },
+            uin: app.uin || undefined,
+            issuedAt: app.issuedAt || undefined,
+            rejectionReason: app.rejectionReason || undefined,
+            reviewedBy: app.reviewedBy || undefined,
+            reviewedAt: app.reviewedAt || undefined,
+          };
+        }
+      }
+    }
     
     if (!application) {
       // No application found
