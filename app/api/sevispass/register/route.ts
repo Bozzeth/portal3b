@@ -4,6 +4,7 @@ import {
   verifySevisPassRegistration,
   base64ToUint8Array,
   extractTextFromDocument,
+  analyzeIdentityDocument,
 } from "@/lib/aws/rekognition";
 import { generateUIN, generateApplicationId } from "@/lib/utils/sevispass";
 import { SevisPassService } from "@/lib/services/sevispass-service";
@@ -28,114 +29,77 @@ export async function POST(req: NextRequest) {
     const result = await runWithAmplifyServerContext({
       nextServerContext: { cookies },
       operation: async (contextSpec) => {
-        console.log("Starting text extraction from document");
-        // Extract text from document
+        console.log("Starting intelligent document analysis");
+        // Use Textract AnalyzeID for intelligent identity document analysis
         const documentBytes = base64ToUint8Array(documentImage);
-        const textExtractionResult = await extractTextFromDocument(
+        const idAnalysisResult = await analyzeIdentityDocument(
           documentBytes,
           contextSpec
         );
-        console.log("Text extraction completed:", textExtractionResult.success);
+        console.log("ID analysis completed:", idAnalysisResult.success);
 
-        // Extract document information from the text or fallback
-        const documentNumberMatch = textExtractionResult.text
-          ? textExtractionResult.text.match(/[A-Z]{2}\d{6,8}|P\d{7}|\d{8,12}/)
-          : null;
+        // Initialize with fallback values
         let extractedInfo = {
           fullName: applicantInfo.fullName || "Unknown User",
           dateOfBirth: applicantInfo.dateOfBirth || "1990-01-01",
-          documentNumber: documentNumberMatch
-            ? documentNumberMatch[0]
-            : "DOC123456789",
+          documentNumber: "DOC123456789",
           nationality: "Papua New Guinea",
         };
 
-        // Extract information from OCR text
-        if (textExtractionResult.success && textExtractionResult.text) {
-          console.log('OCR extracted text:', textExtractionResult.text);
+        // Use intelligent extraction results if successful
+        if (idAnalysisResult.success && idAnalysisResult.extractedData) {
+          const data = idAnalysisResult.extractedData;
+          console.log("Intelligent extraction data:", data);
           
-          // Try multiple MRZ patterns for PNG passport name extraction
-          let nameExtracted = false;
+          // Use extracted full name or construct from parts
+          if (data.fullName) {
+            extractedInfo.fullName = data.fullName;
+            console.log("Used intelligent fullName extraction:", data.fullName);
+          } else if (data.firstName && data.lastName) {
+            extractedInfo.fullName = `${data.firstName} ${data.lastName}`;
+            console.log("Constructed name from parts:", extractedInfo.fullName);
+          }
           
-          // Pattern 1: Standard PNG MRZ format: P<PNGLASTNAME<<FIRSTNAME<MIDDLENAME<<<<<
-          const mrzMatch1 = textExtractionResult.text.match(/P<PNG([^<\s]+)<<([^<\s]+)<?([^<\s]*)<*/i);
-          if (mrzMatch1 && !nameExtracted) {
-            const lastName = mrzMatch1[1].replace(/</g, '').trim();
-            const firstName = mrzMatch1[2].replace(/</g, '').trim();
-            const middleName = mrzMatch1[3] ? mrzMatch1[3].replace(/</g, '').trim() : '';
-            
-            if (lastName && firstName) {
-              const fullName = middleName 
-                ? `${firstName} ${middleName} ${lastName}`
-                : `${firstName} ${lastName}`;
-              
-              console.log('Extracted MRZ name (Pattern 1):', { lastName, firstName, middleName, fullName });
-              extractedInfo.fullName = fullName;
-              nameExtracted = true;
+          // Use extracted date of birth
+          if (data.dateOfBirth) {
+            // Try to normalize date format to YYYY-MM-DD
+            const dateStr = data.dateOfBirth;
+            const dateMatch = dateStr.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+            if (dateMatch) {
+              const [, day, month, year] = dateMatch;
+              extractedInfo.dateOfBirth = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+            } else {
+              extractedInfo.dateOfBirth = dateStr;
             }
+            console.log("Used intelligent date extraction:", extractedInfo.dateOfBirth);
           }
           
-          // Pattern 2: Alternative MRZ format with spaces or line breaks
-          if (!nameExtracted) {
-            const mrzMatch2 = textExtractionResult.text.match(/P\s*<\s*PNG\s*([^<\s]+)\s*<+\s*([^<\s]+)\s*<*\s*([^<\s]*)/i);
-            if (mrzMatch2) {
-              const lastName = mrzMatch2[1].trim();
-              const firstName = mrzMatch2[2].trim();
-              const middleName = mrzMatch2[3] ? mrzMatch2[3].trim() : '';
-              
-              if (lastName && firstName) {
-                const fullName = middleName 
-                  ? `${firstName} ${middleName} ${lastName}`
-                  : `${firstName} ${lastName}`;
-                
-                console.log('Extracted MRZ name (Pattern 2):', { lastName, firstName, middleName, fullName });
-                extractedInfo.fullName = fullName;
-                nameExtracted = true;
-              }
-            }
+          // Use extracted document number
+          if (data.documentNumber) {
+            extractedInfo.documentNumber = data.documentNumber;
+            console.log("Used intelligent document number extraction:", data.documentNumber);
           }
           
-          // Pattern 3: Look for PNG followed by name components anywhere in text
-          if (!nameExtracted) {
-            const pngMatch = textExtractionResult.text.match(/PNG\s*([A-Z]+)\s*[<\s]+([A-Z]+)(?:\s*[<\s]+([A-Z]+))?/i);
-            if (pngMatch) {
-              const lastName = pngMatch[1].trim();
-              const firstName = pngMatch[2].trim();
-              const middleName = pngMatch[3] ? pngMatch[3].trim() : '';
-              
-              if (lastName && firstName && lastName !== 'PNG') {
-                const fullName = middleName 
-                  ? `${firstName} ${middleName} ${lastName}`
-                  : `${firstName} ${lastName}`;
-                
-                console.log('Extracted MRZ name (Pattern 3):', { lastName, firstName, middleName, fullName });
-                extractedInfo.fullName = fullName;
-                nameExtracted = true;
-              }
-            }
+          // Use extracted nationality
+          if (data.nationality) {
+            extractedInfo.nationality = data.nationality;
+            console.log("Used intelligent nationality extraction:", data.nationality);
           }
+        } else {
+          console.log("Intelligent extraction failed, falling back to OCR text parsing");
           
-          if (!nameExtracted) {
-            console.log('No MRZ name pattern matched, using fallback');
-          }
-          
-          // Extract date patterns from OCR
-          const dateMatch = textExtractionResult.text.match(
-            /\d{1,2}[-/]\d{1,2}[-/]\d{4}/
+          // Fallback to basic text extraction for document number
+          const textExtractionResult = await extractTextFromDocument(
+            documentBytes,
+            contextSpec
           );
-          if (dateMatch) {
-            const [day, month, year] = dateMatch[0].split(/[-/]/);
-            extractedInfo.dateOfBirth = `${year}-${month.padStart(
-              2,
-              "0"
-            )}-${day.padStart(2, "0")}`;
-          }
-
-          // Extract document number from MRZ (second line usually starts with passport number)
-          const docNumMatch = textExtractionResult.text.match(/P<PNG[^<]+<<[^<]+<?[^<]*<*[\r\n]+([A-Z0-9]{8,9})/);
-          if (docNumMatch) {
-            extractedInfo.documentNumber = docNumMatch[1];
-            console.log('Extracted document number:', docNumMatch[1]);
+          
+          if (textExtractionResult.success && textExtractionResult.text) {
+            // Extract document number from OCR text as fallback
+            const documentNumberMatch = textExtractionResult.text.match(/[A-Z]{2}\d{6,8}|P\d{7}|\d{8,12}/);
+            if (documentNumberMatch) {
+              extractedInfo.documentNumber = documentNumberMatch[0];
+            }
           }
         }
 

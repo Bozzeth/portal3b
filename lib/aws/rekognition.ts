@@ -18,6 +18,7 @@ import {
   TextractClient,
   DetectDocumentTextCommand,
   AnalyzeDocumentCommand,
+  AnalyzeIDCommand,
   type Block
 } from '@aws-sdk/client-textract';
 import {
@@ -577,6 +578,137 @@ export async function analyzeDocument(
       text: '',
       success: false,
       error: 'Failed to analyze document'
+    };
+  }
+}
+
+/**
+ * Analyze identity documents using Textract AnalyzeID
+ * Specifically designed for extracting structured data from identity documents
+ */
+export async function analyzeIdentityDocument(
+  imageBytes: Uint8Array,
+  contextSpec?: any
+): Promise<{
+  extractedData: {
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+    dateOfBirth?: string;
+    documentNumber?: string;
+    nationality?: string;
+    documentType?: string;
+  };
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const textractClient = await getTextractClient(contextSpec);
+    
+    const command = new AnalyzeIDCommand({
+      DocumentPages: [
+        {
+          Bytes: imageBytes,
+        },
+      ],
+    });
+
+    const response = await textractClient.send(command);
+    const documents = response.Documents || [];
+    
+    if (documents.length === 0) {
+      return {
+        extractedData: {},
+        success: false,
+        error: 'No identity document detected'
+      };
+    }
+
+    const document = documents[0];
+    const identityDocumentFields = document.IdentityDocumentFields || [];
+    
+    // Extract structured data from the identity document
+    const extractedData: any = {};
+    
+    for (const field of identityDocumentFields) {
+      const fieldType = field.Type?.Text?.toLowerCase();
+      const fieldValue = field.ValueDetection?.Text;
+      
+      if (!fieldType || !fieldValue) continue;
+      
+      // Map common identity document fields
+      switch (fieldType) {
+        case 'first_name':
+        case 'first name':
+        case 'given_name':
+        case 'given name':
+          extractedData.firstName = fieldValue;
+          break;
+        case 'last_name':
+        case 'last name':
+        case 'surname':
+        case 'family_name':
+        case 'family name':
+          extractedData.lastName = fieldValue;
+          break;
+        case 'full_name':
+        case 'full name':
+        case 'name':
+          extractedData.fullName = fieldValue;
+          break;
+        case 'date_of_birth':
+        case 'date of birth':
+        case 'birth_date':
+        case 'birth date':
+        case 'dob':
+          extractedData.dateOfBirth = fieldValue;
+          break;
+        case 'document_number':
+        case 'document number':
+        case 'id_number':
+        case 'id number':
+        case 'passport_number':
+        case 'passport number':
+          extractedData.documentNumber = fieldValue;
+          break;
+        case 'nationality':
+        case 'country':
+        case 'country_of_birth':
+          extractedData.nationality = fieldValue;
+          break;
+        case 'document_type':
+        case 'document type':
+          extractedData.documentType = fieldValue;
+          break;
+      }
+    }
+    
+    // If we have firstName and lastName but no fullName, construct it
+    if (!extractedData.fullName && extractedData.firstName && extractedData.lastName) {
+      extractedData.fullName = `${extractedData.firstName} ${extractedData.lastName}`;
+    }
+    
+    // If we have fullName but no firstName/lastName, try to split it
+    if (extractedData.fullName && (!extractedData.firstName || !extractedData.lastName)) {
+      const nameParts = extractedData.fullName.trim().split(/\s+/);
+      if (nameParts.length >= 2) {
+        extractedData.firstName = nameParts[0];
+        extractedData.lastName = nameParts[nameParts.length - 1];
+      }
+    }
+
+    console.log('AnalyzeID extracted data:', extractedData);
+    
+    return {
+      extractedData,
+      success: true,
+    };
+  } catch (error) {
+    console.error('Error analyzing identity document:', error);
+    return {
+      extractedData: {},
+      success: false,
+      error: 'Failed to analyze identity document'
     };
   }
 }

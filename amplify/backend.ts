@@ -30,7 +30,8 @@ const textractPolicy = new PolicyStatement({
   effect: Effect.ALLOW,
   actions: [
     'textract:DetectDocumentText',
-    'textract:AnalyzeDocument'
+    'textract:AnalyzeDocument',
+    'textract:AnalyzeID'
   ],
   resources: ['*']
 });
