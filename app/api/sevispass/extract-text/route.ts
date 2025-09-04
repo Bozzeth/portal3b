@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { detectText } from '@/lib/aws/rekognition';
 import { runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
 
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await runWithAmplifyServerContext({
-      nextServerContext: { request },
+      nextServerContext: { cookies },
       operation: async (contextSpec) => {
         // Convert base64 image to buffer for Rekognition
         const base64Data = documentImage.replace(/^data:image\/[a-z]+;base64,/, '');
