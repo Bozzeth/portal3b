@@ -1,7 +1,7 @@
 // AWS Rekognition integration for SevisPass
 // This file handles facial recognition, liveness detection, and face comparison
 
-import { 
+import {
   RekognitionClient,
   DetectFacesCommand,
   CompareFacesCommand,
@@ -21,19 +21,27 @@ import {
 } from '@aws-sdk/client-rekognitionstreaming';
 import { Amplify } from 'aws-amplify';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { fetchAuthSession as fetchAuthSessionServer } from 'aws-amplify/auth/server';
+import outputs from '@/amplify_outputs.json';
 
-// Get AWS credentials from Amplify
+// Get AWS credentials from Amplify (client-side)
 async function getAmplifyCredentials() {
   try {
-    const session = await fetchAuthSession();
+    // Ensure Amplify is configured
     const config = Amplify.getConfig();
-    
+    if (!config.Auth?.Cognito?.userPoolId) {
+      console.log('Amplify not configured, configuring now...');
+      Amplify.configure(outputs);
+    }
+
+    const session = await fetchAuthSession();
+
     if (!session.credentials) {
       throw new Error('No AWS credentials available');
     }
 
     return {
-      region: config.Auth?.Cognito?.userPoolId ? 
+      region: config.Auth?.Cognito?.userPoolId ?
         config.Auth.Cognito.userPoolId.split('_')[0] : 'ap-southeast-2',
       credentials: {
         accessKeyId: session.credentials.accessKeyId,
@@ -43,18 +51,60 @@ async function getAmplifyCredentials() {
     };
   } catch (error) {
     console.error('Error getting Amplify credentials:', error);
-    // Fallback to default region
+    throw error;
+  }
+}
+
+// Get AWS credentials from Amplify (server-side with context)
+async function getAmplifyCredentialsServer(contextSpec?: any) {
+  try {
+    // Ensure Amplify is configured
+    const config = Amplify.getConfig();
+    if (!config.Auth?.Cognito?.userPoolId) {
+      console.log('Amplify not configured, configuring now...');
+      Amplify.configure(outputs);
+    }
+
+    console.log('Fetching auth session with context:', !!contextSpec);
+
+    // Get session - this should work for both authenticated and unauthenticated users
+    const session = contextSpec
+      ? await fetchAuthSessionServer(contextSpec)
+      : await fetchAuthSession();
+
+    console.log('Auth session result:', {
+      hasCredentials: !!session.credentials,
+      hasAccessKey: !!session.credentials?.accessKeyId,
+      hasSecretKey: !!session.credentials?.secretAccessKey,
+      hasSessionToken: !!session.credentials?.sessionToken,
+      identityId: session.identityId
+    });
+
+    if (!session.credentials) {
+      throw new Error('No AWS credentials available. Make sure Amplify backend is deployed with proper IAM permissions.');
+    }
+
     return {
-      region: 'ap-southeast-2',
-      credentials: undefined
+      region: outputs.auth.aws_region || 'ap-southeast-2',
+      credentials: {
+        accessKeyId: session.credentials.accessKeyId,
+        secretAccessKey: session.credentials.secretAccessKey,
+        sessionToken: session.credentials.sessionToken,
+      }
     };
+  } catch (error) {
+    console.error('Error getting Amplify credentials:', error);
+    console.error('Make sure to run "npx ampx sandbox" to deploy your backend');
+    throw error;
   }
 }
 
 // Initialize Rekognition client with Amplify credentials
-async function getRekognitionClient(): Promise<RekognitionClient> {
-  const { region, credentials } = await getAmplifyCredentials();
-  
+async function getRekognitionClient(contextSpec?: any): Promise<RekognitionClient> {
+  const { region, credentials } = contextSpec
+    ? await getAmplifyCredentialsServer(contextSpec)
+    : await getAmplifyCredentials();
+
   return new RekognitionClient({
     region,
     credentials,
@@ -62,9 +112,11 @@ async function getRekognitionClient(): Promise<RekognitionClient> {
 }
 
 // Initialize Rekognition Streaming client for Face Liveness
-async function getRekognitionStreamingClient(): Promise<RekognitionStreamingClient> {
-  const { region, credentials } = await getAmplifyCredentials();
-  
+async function getRekognitionStreamingClient(contextSpec?: any): Promise<RekognitionStreamingClient> {
+  const { region, credentials } = contextSpec
+    ? await getAmplifyCredentialsServer(contextSpec)
+    : await getAmplifyCredentials();
+
   return new RekognitionStreamingClient({
     region,
     credentials,
@@ -85,14 +137,14 @@ export const CONFIDENCE_THRESHOLDS = {
 /**
  * Initialize SevisPass face collection
  */
-export async function initializeCollection(): Promise<boolean> {
+export async function initializeCollection(contextSpec?: any): Promise<boolean> {
   try {
-    const rekognitionClient = await getRekognitionClient();
-    
+    const rekognitionClient = await getRekognitionClient(contextSpec);
+
     // Check if collection already exists
     const listCommand = new ListCollectionsCommand({});
     const collections = await rekognitionClient.send(listCommand);
-    
+
     if (collections.CollectionIds?.includes(SEVISPASS_COLLECTION)) {
       console.log('SevisPass collection already exists');
       return true;
@@ -102,7 +154,7 @@ export async function initializeCollection(): Promise<boolean> {
     const createCommand = new CreateCollectionCommand({
       CollectionId: SEVISPASS_COLLECTION,
     });
-    
+
     await rekognitionClient.send(createCommand);
     console.log('SevisPass collection created successfully');
     return true;
@@ -115,13 +167,13 @@ export async function initializeCollection(): Promise<boolean> {
 /**
  * Detect faces in an image and check quality
  */
-export async function detectFaces(imageBytes: Uint8Array): Promise<{
+export async function detectFaces(imageBytes: Uint8Array, contextSpec?: any): Promise<{
   faces: Face[];
   isGoodQuality: boolean;
   error?: string;
 }> {
   try {
-    const rekognitionClient = await getRekognitionClient();
+    const rekognitionClient = await getRekognitionClient(contextSpec);
     const command = new DetectFacesCommand({
       Image: { Bytes: imageBytes },
       Attributes: ['ALL'],
@@ -147,10 +199,10 @@ export async function detectFaces(imageBytes: Uint8Array): Promise<{
     }
 
     const face = faces[0];
-    
+
     // Check face quality requirements - Relaxed for better accessibility
     const quality = face.Quality;
-    const isGoodQuality = 
+    const isGoodQuality =
       (quality?.Brightness || 0) >= 10 &&  // Lowered from 20 - accept darker images
       (quality?.Brightness || 0) <= 90 &&  // Raised from 80 - accept brighter images
       (quality?.Sharpness || 0) >= 10 &&   // Lowered from 20 - accept slightly blurry images
@@ -185,7 +237,8 @@ export async function detectFaces(imageBytes: Uint8Array): Promise<{
  */
 export async function compareFaces(
   sourceImageBytes: Uint8Array,
-  targetImageBytes: Uint8Array
+  targetImageBytes: Uint8Array,
+  contextSpec?: any
 ): Promise<{
   similarity: number;
   isMatch: boolean;
@@ -193,7 +246,7 @@ export async function compareFaces(
   error?: string;
 }> {
   try {
-    const rekognitionClient = await getRekognitionClient();
+    const rekognitionClient = await getRekognitionClient(contextSpec);
     const command = new CompareFacesCommand({
       SourceImage: { Bytes: sourceImageBytes },
       TargetImage: { Bytes: targetImageBytes },
@@ -201,7 +254,7 @@ export async function compareFaces(
     });
 
     const response = await rekognitionClient.send(command);
-    
+
     if (!response.FaceMatches || response.FaceMatches.length === 0) {
       return {
         similarity: 0,
@@ -214,7 +267,7 @@ export async function compareFaces(
     const match = response.FaceMatches[0];
     const similarity = match.Similarity || 0;
     const confidence = match.Face?.Confidence || 0;
-    
+
     return {
       similarity,
       isMatch: similarity >= CONFIDENCE_THRESHOLDS.REJECT,
@@ -237,14 +290,15 @@ export async function compareFaces(
 export async function indexFace(
   imageBytes: Uint8Array,
   externalImageId: string, // UIN
-  maxFaces: number = 1
+  maxFaces: number = 1,
+  contextSpec?: any
 ): Promise<{
   faceId?: string;
   success: boolean;
   error?: string;
 }> {
   try {
-    const rekognitionClient = await getRekognitionClient();
+    const rekognitionClient = await getRekognitionClient(contextSpec);
     const command = new IndexFacesCommand({
       CollectionId: SEVISPASS_COLLECTION,
       Image: { Bytes: imageBytes },
@@ -255,7 +309,7 @@ export async function indexFace(
     });
 
     const response = await rekognitionClient.send(command);
-    
+
     if (!response.FaceRecords || response.FaceRecords.length === 0) {
       return {
         success: false,
@@ -303,7 +357,7 @@ export async function searchFaceInCollection(
 
     const response = await rekognitionClient.send(command);
     const matches = response.FaceMatches || [];
-    
+
     if (matches.length === 0) {
       return {
         matches: [],
@@ -354,10 +408,10 @@ export async function removeFaceFromCollection(faceId: string): Promise<boolean>
 /**
  * Detect text in images (wrapper for API compatibility)
  */
-export async function detectText(imageBytes: Buffer): Promise<any[]> {
+export async function detectText(imageBytes: Buffer, contextSpec?: any): Promise<any[]> {
   try {
     const uint8Array = new Uint8Array(imageBytes);
-    const result = await extractTextFromDocument(uint8Array);
+    const result = await extractTextFromDocument(uint8Array, contextSpec);
     return result.detectedText;
   } catch (error) {
     console.error('Error in detectText wrapper:', error);
@@ -369,7 +423,8 @@ export async function detectText(imageBytes: Buffer): Promise<any[]> {
  * Extract text from identity documents
  */
 export async function extractTextFromDocument(
-  imageBytes: Uint8Array
+  imageBytes: Uint8Array,
+  contextSpec?: any
 ): Promise<{
   text: string;
   detectedText: any[];
@@ -377,14 +432,14 @@ export async function extractTextFromDocument(
   error?: string;
 }> {
   try {
-    const rekognitionClient = await getRekognitionClient();
+    const rekognitionClient = await getRekognitionClient(contextSpec);
     const command = new DetectTextCommand({
       Image: { Bytes: imageBytes },
     });
 
     const response = await rekognitionClient.send(command);
     const textDetections = response.TextDetections || [];
-    
+
     // Extract all detected text
     const extractedText = textDetections
       .filter(detection => detection.Type === 'LINE')
@@ -417,7 +472,7 @@ export async function startLivenessSession(): Promise<{
 }> {
   try {
     const rekognitionStreamingClient = await getRekognitionStreamingClient();
-    
+
     const command = new StartFaceLivenessSessionCommand({
       SessionId: `sevispass-${Date.now()}-${Math.random().toString(36).substring(2)}`,
       VideoWidth: "640",
@@ -426,7 +481,7 @@ export async function startLivenessSession(): Promise<{
     });
 
     const response = await rekognitionStreamingClient.send(command);
-    
+
     return {
       sessionId: response.SessionId || `live-${Date.now()}-${Math.random().toString(36).substring(2)}`,
       success: true,
@@ -454,7 +509,7 @@ export async function getLivenessSessionResults(sessionId: string): Promise<{
     // Face Liveness results are actually retrieved through a different API
     // For now, we'll simulate the liveness check based on session activity
     // In production, you'd integrate with the Face Liveness WebSocket API
-    
+
     if (!sessionId || !sessionId.startsWith('live-')) {
       return {
         isLive: false,
@@ -493,11 +548,11 @@ export function base64ToUint8Array(base64String: string): Uint8Array {
   const base64Data = base64String.replace(/^data:image\/[a-z]+;base64,/, '');
   const binaryString = atob(base64Data);
   const bytes = new Uint8Array(binaryString.length);
-  
+
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
-  
+
   return bytes;
 }
 
@@ -507,7 +562,8 @@ export function base64ToUint8Array(base64String: string): Uint8Array {
 export async function verifySevisPassRegistration(
   selfieBase64: string,
   documentPhotoBase64: string,
-  uin: string
+  uin: string,
+  contextSpec?: any
 ): Promise<{
   approved: boolean;
   confidence: number;
@@ -520,8 +576,8 @@ export async function verifySevisPassRegistration(
     const documentBytes = base64ToUint8Array(documentPhotoBase64);
 
     // 1. Detect faces in both images
-    const selfieFaceResult = await detectFaces(selfieBytes);
-    const documentFaceResult = await detectFaces(documentBytes);
+    const selfieFaceResult = await detectFaces(selfieBytes, contextSpec);
+    const documentFaceResult = await detectFaces(documentBytes, contextSpec);
 
     // Log quality issues for debugging but don't immediately fail
     if (!selfieFaceResult.isGoodQuality) {
@@ -545,8 +601,8 @@ export async function verifySevisPassRegistration(
     const hasQualityIssues = !selfieFaceResult.isGoodQuality || !documentFaceResult.isGoodQuality;
 
     // 2. Compare faces
-    const comparisonResult = await compareFaces(selfieBytes, documentBytes);
-    
+    const comparisonResult = await compareFaces(selfieBytes, documentBytes, contextSpec);
+
     if (!comparisonResult.isMatch) {
       return {
         approved: false,
@@ -561,8 +617,8 @@ export async function verifySevisPassRegistration(
     // 3. Determine approval status - Auto-approve on reasonable confidence
     if (confidence >= CONFIDENCE_THRESHOLDS.AUTO_APPROVE) {
       // Auto-approve with good confidence regardless of minor quality issues
-      const indexResult = await indexFace(selfieBytes, uin);
-      
+      const indexResult = await indexFace(selfieBytes, uin, 1, contextSpec);
+
       return {
         approved: true,
         confidence,
@@ -571,8 +627,8 @@ export async function verifySevisPassRegistration(
       };
     } else if (confidence >= CONFIDENCE_THRESHOLDS.MANUAL_REVIEW) {
       // Auto-approve on reasonable confidence instead of manual review
-      const indexResult = await indexFace(selfieBytes, uin);
-      
+      const indexResult = await indexFace(selfieBytes, uin, 1, contextSpec);
+
       return {
         approved: true,
         confidence,
@@ -626,7 +682,7 @@ export async function verifySevisPassLogin(
 
     // 2. Search in collection
     const searchResult = await searchFaceInCollection(selfieBytes);
-    
+
     if (!searchResult.success || !searchResult.bestMatch) {
       return {
         authenticated: false,

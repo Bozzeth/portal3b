@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { detectText } from '@/lib/aws/rekognition';
+import { runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,20 +13,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert base64 image to buffer for Rekognition
-    const base64Data = documentImage.replace(/^data:image\/[a-z]+;base64,/, '');
-    const imageBuffer = Buffer.from(base64Data, 'base64');
+    const result = await runWithAmplifyServerContext({
+      nextServerContext: { request },
+      operation: async (contextSpec) => {
+        // Convert base64 image to buffer for Rekognition
+        const base64Data = documentImage.replace(/^data:image\/[a-z]+;base64,/, '');
+        const imageBuffer = Buffer.from(base64Data, 'base64');
 
-    // Extract text from document using AWS Rekognition
-    const textDetections = await detectText(imageBuffer);
-    
-    // Parse extracted text based on document type
-    const extractedInfo = parseDocumentText(textDetections, documentType);
+        // Extract text from document using AWS Rekognition
+        const textDetections = await detectText(imageBuffer, contextSpec);
+        
+        // Parse extracted text based on document type
+        const extractedInfo = parseDocumentText(textDetections, documentType);
 
-    return NextResponse.json({
-      success: true,
-      extractedInfo
+        return {
+          success: true,
+          extractedInfo
+        };
+      }
     });
+
+    return NextResponse.json(result);
 
   } catch (error) {
     console.error('Error extracting text from document:', error);

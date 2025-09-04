@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
         // Extract text from document
         const documentBytes = base64ToUint8Array(documentImage);
         const textExtractionResult = await extractTextFromDocument(
-          documentBytes
+          documentBytes,
+          contextSpec
         );
         console.log("Text extraction completed:", textExtractionResult.success);
 
@@ -88,7 +89,8 @@ export async function POST(req: NextRequest) {
         const verificationResult = await verifySevisPassRegistration(
           selfieImage,
           documentImage,
-          generateUIN() // Generate temporary UIN for verification
+          generateUIN(), // Generate temporary UIN for verification
+          contextSpec
         );
         console.log("Verification completed:", verificationResult);
 

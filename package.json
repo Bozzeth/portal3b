@@ -6,13 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "npx ampx sandbox",
+    "deploy:once": "npx ampx sandbox --once",
+    "check-deployment": "node scripts/check-deployment.js"
   },
   "dependencies": {
     "@aws-amplify/adapter-nextjs": "^1.6.8",
     "@aws-amplify/ui-react": "^6.5.5",
     "@aws-sdk/client-rekognition": "^3.879.0",
     "@aws-sdk/client-rekognitionstreaming": "^3.879.0",
+    "@aws-sdk/credential-providers": "^3.880.0",
     "aws-amplify": "^6.6.6",
     "lucide-react": "^0.542.0",
     "nanoid": "^5.1.5",
