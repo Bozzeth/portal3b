@@ -23,14 +23,14 @@ export default function SevisPassAdminPage() {
       console.log('Session:', session);
       
       // Get user groups from the session tokens
-      let userGroups = [];
+      let userGroups: string[] = [];
       
       // Check access token for groups
       if (session.tokens?.accessToken?.payload) {
         const payload = session.tokens.accessToken.payload;
         console.log('Access token payload:', payload);
         const groups = payload['cognito:groups'];
-        userGroups = Array.isArray(groups) ? groups : [];
+        userGroups = Array.isArray(groups) ? groups.filter((g): g is string => typeof g === 'string') : [];
       }
       
       // Temporary override for testing - check email contains admin
