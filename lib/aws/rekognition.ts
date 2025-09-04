@@ -558,19 +558,9 @@ export async function verifySevisPassRegistration(
 
     const confidence = comparisonResult.similarity;
 
-    // 3. Determine approval status based on confidence and quality
-    if (hasQualityIssues && confidence >= CONFIDENCE_THRESHOLDS.MANUAL_REVIEW) {
-      // If quality issues but reasonable confidence, require manual review
-      return {
-        approved: false,
-        confidence,
-        requiresManualReview: true,
-        error: 'Image quality requires manual review'
-      };
-    }
-
-    if (confidence >= CONFIDENCE_THRESHOLDS.AUTO_APPROVE && !hasQualityIssues) {
-      // Auto-approve only if both confidence and quality are good
+    // 3. Determine approval status - Auto-approve on reasonable confidence
+    if (confidence >= CONFIDENCE_THRESHOLDS.AUTO_APPROVE) {
+      // Auto-approve with good confidence regardless of minor quality issues
       const indexResult = await indexFace(selfieBytes, uin);
       
       return {
@@ -580,19 +570,22 @@ export async function verifySevisPassRegistration(
         faceId: indexResult.faceId,
       };
     } else if (confidence >= CONFIDENCE_THRESHOLDS.MANUAL_REVIEW) {
-      // Requires manual review
+      // Auto-approve on reasonable confidence instead of manual review
+      const indexResult = await indexFace(selfieBytes, uin);
+      
       return {
-        approved: false,
+        approved: true,
         confidence,
-        requiresManualReview: true,
+        requiresManualReview: false,
+        faceId: indexResult.faceId,
       };
     } else {
-      // Reject
+      // Only reject on very low confidence
       return {
         approved: false,
         confidence,
         requiresManualReview: false,
-        error: 'Face verification failed - insufficient similarity'
+        error: `Face verification failed - confidence too low: ${confidence.toFixed(1)}%`
       };
     }
   } catch (error) {
