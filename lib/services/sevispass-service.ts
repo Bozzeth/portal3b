@@ -1,5 +1,5 @@
 // SevisPass Service - Real Amplify Gen 2 DynamoDB integration
-import { generateClient } from 'aws-amplify/data';
+import { generateClient } from 'aws-amplify/data/server';
 import { uploadData } from 'aws-amplify/storage';
 import { getUrl } from 'aws-amplify/storage/server';
 import type { Schema } from '@/amplify/data/resource';
@@ -7,8 +7,6 @@ import { generateUIN, generateApplicationId } from '@/lib/utils/sevispass';
 import { runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
 import { Amplify } from 'aws-amplify';
 import outputs from '@/amplify_outputs.json';
-
-const client = generateClient<Schema>();
 
 export interface SevisPassApplicationData {
   applicationId: string;
@@ -81,46 +79,58 @@ export class SevisPassService {
       console.log('S3 uploads completed');
 
       console.log('Starting DynamoDB SevisPassApplication create');
-      // Save to DynamoDB
-      await client.models.SevisPassApplication.create({
-        userId,
-        applicationId: applicationData.applicationId,
-        status: applicationData.status,
-        submittedAt: applicationData.submittedAt,
-        documentType: applicationData.documentType,
-        documentImageKey: documentKey,
-        selfieImageKey: selfieKey,
-        fullName: applicationData.extractedInfo.fullName,
-        dateOfBirth: applicationData.extractedInfo.dateOfBirth,
-        documentNumber: applicationData.extractedInfo.documentNumber,
-        nationality: applicationData.extractedInfo.nationality,
-        confidence: applicationData.verificationData.confidence,
-        requiresManualReview: applicationData.verificationData.requiresManualReview,
-        faceId: applicationData.verificationData.faceId,
-        uin: applicationData.uin,
-        issuedAt: applicationData.issuedAt,
-        rejectionReason: applicationData.rejectionReason,
-        reviewedBy: applicationData.reviewedBy,
-        reviewedAt: applicationData.reviewedAt,
+      // Save to DynamoDB using server context
+      await runWithAmplifyServerContext({
+        nextServerContext: { request },
+        operation: (contextSpec) => {
+          const serverClient = generateClient<Schema>(contextSpec);
+          return serverClient.models.SevisPassApplication.create({
+            userId,
+            applicationId: applicationData.applicationId,
+            status: applicationData.status,
+            submittedAt: applicationData.submittedAt,
+            documentType: applicationData.documentType,
+            documentImageKey: documentKey,
+            selfieImageKey: selfieKey,
+            fullName: applicationData.extractedInfo.fullName,
+            dateOfBirth: applicationData.extractedInfo.dateOfBirth,
+            documentNumber: applicationData.extractedInfo.documentNumber,
+            nationality: applicationData.extractedInfo.nationality,
+            confidence: applicationData.verificationData.confidence,
+            requiresManualReview: applicationData.verificationData.requiresManualReview,
+            faceId: applicationData.verificationData.faceId,
+            uin: applicationData.uin,
+            issuedAt: applicationData.issuedAt,
+            rejectionReason: applicationData.rejectionReason,
+            reviewedBy: applicationData.reviewedBy,
+            reviewedAt: applicationData.reviewedAt,
+          });
+        }
       });
       console.log('DynamoDB SevisPassApplication created successfully');
 
-      // If approved, also create SevisPassHolder record
+      // If approved, also create SevisPassHolder record using server context
       if (applicationData.status === 'approved' && applicationData.uin) {
         console.log('Creating SevisPassHolder record');
-        await client.models.SevisPassHolder.create({
-          userId,
-          uin: applicationData.uin,
-          fullName: applicationData.extractedInfo.fullName,
-          dateOfBirth: applicationData.extractedInfo.dateOfBirth,
-          documentNumber: applicationData.extractedInfo.documentNumber,
-          nationality: applicationData.extractedInfo.nationality,
-          issuedAt: applicationData.issuedAt!,
-          expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
-          status: 'active', // Explicitly set default status
-          faceId: applicationData.verificationData.faceId,
-          documentImageKey: documentKey,
-          photoImageKey: selfieKey,
+        await runWithAmplifyServerContext({
+          nextServerContext: { request },
+          operation: (contextSpec) => {
+            const serverClient = generateClient<Schema>(contextSpec);
+            return serverClient.models.SevisPassHolder.create({
+              userId,
+              uin: applicationData.uin,
+              fullName: applicationData.extractedInfo.fullName,
+              dateOfBirth: applicationData.extractedInfo.dateOfBirth,
+              documentNumber: applicationData.extractedInfo.documentNumber,
+              nationality: applicationData.extractedInfo.nationality,
+              issuedAt: applicationData.issuedAt!,
+              expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
+              status: 'active', // Explicitly set default status
+              faceId: applicationData.verificationData.faceId,
+              documentImageKey: documentKey,
+              photoImageKey: selfieKey,
+            });
+          }
         });
         console.log('SevisPassHolder record created successfully');
       }
@@ -135,10 +145,16 @@ export class SevisPassService {
   /**
    * Get application by user ID
    */
-  static async getApplication(userId: string): Promise<SevisPassApplicationData | null> {
+  static async getApplication(userId: string, request?: Request): Promise<SevisPassApplicationData | null> {
     try {
-      const { data: applications } = await client.models.SevisPassApplication.list({
-        filter: { userId: { eq: userId } }
+      const { data: applications } = await runWithAmplifyServerContext({
+        nextServerContext: request ? { request } : null,
+        operation: (contextSpec) => {
+          const serverClient = generateClient<Schema>(contextSpec);
+          return serverClient.models.SevisPassApplication.list({
+            filter: { userId: { eq: userId } }
+          });
+        }
       });
 
       if (!applications || applications.length === 0) {
@@ -183,8 +199,14 @@ export class SevisPassService {
    */
   static async getSevisPassHolder(userId: string, request?: Request): Promise<any | null> {
     try {
-      const { data: holders } = await client.models.SevisPassHolder.list({
-        filter: { userId: { eq: userId }, status: { eq: 'active' } }
+      const { data: holders } = await runWithAmplifyServerContext({
+        nextServerContext: request ? { request } : null,
+        operation: (contextSpec) => {
+          const serverClient = generateClient<Schema>(contextSpec);
+          return serverClient.models.SevisPassHolder.list({
+            filter: { userId: { eq: userId }, status: { eq: 'active' } }
+          });
+        }
       });
 
       if (!holders || holders.length === 0) {
