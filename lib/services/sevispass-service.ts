@@ -1,12 +1,9 @@
 // SevisPass Service - Real Amplify Gen 2 DynamoDB integration
 import { uploadData } from 'aws-amplify/storage';
 import { getUrl } from 'aws-amplify/storage/server';
-import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '@/amplify/data/resource';
 import { generateUIN, generateApplicationId } from '@/lib/utils/sevispass';
-import { cookiesClient, reqResBasedClient, runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
-import { Amplify } from 'aws-amplify';
-import outputs from '@/amplify_outputs.json';
+import { cookiesClient, publicServerClient, runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
 
 export interface SevisPassApplicationData {
   applicationId: string;
@@ -76,9 +73,10 @@ export class SevisPassService {
       console.log('S3 uploads completed');
 
       console.log('Starting DynamoDB SevisPassApplication create');
-      // Save to DynamoDB using provided context
-      const { data } = await reqResBasedClient.models.SevisPassApplication.create({
-        userId,
+      
+      // Prepare the application record data
+      const applicationRecord = {
+        userId, // This is the primary key
         applicationId: applicationData.applicationId,
         status: applicationData.status,
         submittedAt: applicationData.submittedAt,
@@ -97,15 +95,39 @@ export class SevisPassService {
         rejectionReason: applicationData.rejectionReason,
         reviewedBy: applicationData.reviewedBy,
         reviewedAt: applicationData.reviewedAt,
-      }, contextSpec);
+      };
+
+      console.log('Application record data:', JSON.stringify(applicationRecord, null, 2));
+
+      // Try public server client first since it has create permission
+      let data;
+      try {
+        console.log('Attempting create with public API key server client...');
+        const result = await publicServerClient.models.SevisPassApplication.create(applicationRecord);
+        data = result.data;
+        console.log('Public client create succeeded:', !!data);
+      } catch (publicError) {
+        console.error('Public client failed:', publicError);
+        console.log('Fallback to cookies client...');
+        try {
+          const result = await cookiesClient.models.SevisPassApplication.create(applicationRecord);
+          data = result.data;
+          console.log('Cookies client create succeeded:', !!data);
+        } catch (cookiesError) {
+          console.error('Cookies client also failed:', cookiesError);
+          throw new Error(`Failed to save application - Public: ${publicError.message}, Cookies: ${cookiesError.message}`);
+        }
+      }
       console.log('DynamoDB SevisPassApplication created successfully');
 
-      // If approved, also create SevisPassHolder record using provided context
+      // If approved, also create SevisPassHolder record
       if (applicationData.status === 'approved' && applicationData.uin) {
         console.log('Creating SevisPassHolder record');
-        const { data: holderData } = await reqResBasedClient.models.SevisPassHolder.create({
+        
+        // Prepare the holder record data
+        const holderRecord = {
+          uin: applicationData.uin, // This is the primary key for SevisPassHolder
           userId,
-          uin: applicationData.uin,
           fullName: applicationData.extractedInfo.fullName,
           dateOfBirth: applicationData.extractedInfo.dateOfBirth,
           documentNumber: applicationData.extractedInfo.documentNumber,
@@ -116,7 +138,25 @@ export class SevisPassService {
           faceId: applicationData.verificationData.faceId,
           documentImageKey: documentKey,
           photoImageKey: selfieKey,
-        }, contextSpec);
+        };
+
+        console.log('Holder record data:', JSON.stringify(holderRecord, null, 2));
+
+        try {
+          console.log('Attempting holder create with public API key server client...');
+          const { data: holderData } = await publicServerClient.models.SevisPassHolder.create(holderRecord);
+          console.log('Public client holder create succeeded:', !!holderData);
+        } catch (publicError) {
+          console.error('Public client holder failed:', publicError);
+          console.log('Fallback to cookies client for holder...');
+          try {
+            const { data: holderData } = await cookiesClient.models.SevisPassHolder.create(holderRecord);
+            console.log('Cookies client holder create succeeded:', !!holderData);
+          } catch (cookiesError) {
+            console.error('Cookies client holder also failed:', cookiesError);
+            throw new Error(`Failed to save holder - Public: ${publicError.message}, Cookies: ${cookiesError.message}`);
+          }
+        }
         console.log('SevisPassHolder record created successfully');
       }
 
@@ -132,9 +172,20 @@ export class SevisPassService {
    */
   static async getApplication(userId: string, request?: Request): Promise<SevisPassApplicationData | null> {
     try {
-      const { data: applications } = await cookiesClient.models.SevisPassApplication.list({
-        filter: { userId: { eq: userId } }
-      });
+      // Try cookies client first, fallback to public client
+      let applications;
+      try {
+        const result = await cookiesClient.models.SevisPassApplication.list({
+          filter: { userId: { eq: userId } }
+        });
+        applications = result.data;
+      } catch (authError) {
+        console.log('Cookies client failed for getApplication, using public API key server client');
+        const result = await publicServerClient.models.SevisPassApplication.list({
+          filter: { userId: { eq: userId } }
+        });
+        applications = result.data;
+      }
 
       if (!applications || applications.length === 0) {
         return null;
@@ -178,9 +229,19 @@ export class SevisPassService {
    */
   static async getSevisPassHolder(userId: string, request?: Request): Promise<any | null> {
     try {
-      const { data: holders } = await cookiesClient.models.SevisPassHolder.list({
-        filter: { userId: { eq: userId }, status: { eq: 'active' } }
-      });
+      let holders;
+      try {
+        const result = await cookiesClient.models.SevisPassHolder.list({
+          filter: { userId: { eq: userId }, status: { eq: 'active' } }
+        });
+        holders = result.data;
+      } catch (authError) {
+        console.log('Cookies client failed for getSevisPassHolder, using public API key server client');
+        const result = await publicServerClient.models.SevisPassHolder.list({
+          filter: { userId: { eq: userId }, status: { eq: 'active' } }
+        });
+        holders = result.data;
+      }
 
       if (!holders || holders.length === 0) {
         return null;

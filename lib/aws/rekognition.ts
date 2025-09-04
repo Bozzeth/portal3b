@@ -10,11 +10,16 @@ import {
   SearchFacesByImageCommand,
   DeleteFacesCommand,
   ListCollectionsCommand,
-  DetectTextCommand,
   type Face,
   type ComparedFace,
   type FaceMatch
 } from '@aws-sdk/client-rekognition';
+import {
+  TextractClient,
+  DetectDocumentTextCommand,
+  AnalyzeDocumentCommand,
+  type Block
+} from '@aws-sdk/client-textract';
 import {
   RekognitionStreamingClient,
   StartFaceLivenessSessionCommand,
@@ -68,17 +73,25 @@ async function getAmplifyCredentialsServer(contextSpec?: any) {
     console.log('Fetching auth session with context:', !!contextSpec);
 
     // Get session - this should work for both authenticated and unauthenticated users
+    // Force refresh to ensure we get the latest IAM permissions
     const session = contextSpec
-      ? await fetchAuthSessionServer(contextSpec)
-      : await fetchAuthSession();
+      ? await fetchAuthSessionServer(contextSpec, { forceRefresh: true })
+      : await fetchAuthSession({ forceRefresh: true });
 
     console.log('Auth session result:', {
       hasCredentials: !!session.credentials,
       hasAccessKey: !!session.credentials?.accessKeyId,
       hasSecretKey: !!session.credentials?.secretAccessKey,
       hasSessionToken: !!session.credentials?.sessionToken,
-      identityId: session.identityId
+      identityId: session.identityId,
+      // Check if this is authenticated or unauthenticated
+      isAuthenticated: session.identityId && !session.identityId.includes('unauthenticated')
     });
+
+    // Log the actual role being used for debugging
+    if (session.credentials?.sessionToken) {
+      console.log('Session token preview:', session.credentials.sessionToken.substring(0, 50) + '...');
+    }
 
     if (!session.credentials) {
       throw new Error('No AWS credentials available. Make sure Amplify backend is deployed with proper IAM permissions.');
@@ -118,6 +131,18 @@ async function getRekognitionStreamingClient(contextSpec?: any): Promise<Rekogni
     : await getAmplifyCredentials();
 
   return new RekognitionStreamingClient({
+    region,
+    credentials,
+  });
+}
+
+// Initialize Textract client with Amplify credentials
+async function getTextractClient(contextSpec?: any): Promise<TextractClient> {
+  const { region, credentials } = contextSpec
+    ? await getAmplifyCredentialsServer(contextSpec)
+    : await getAmplifyCredentials();
+
+  return new TextractClient({
     region,
     credentials,
   });
@@ -406,7 +431,7 @@ export async function removeFaceFromCollection(faceId: string): Promise<boolean>
 }
 
 /**
- * Detect text in images (wrapper for API compatibility)
+ * Detect text in images (wrapper for API compatibility - now uses Textract)
  */
 export async function detectText(imageBytes: Buffer, contextSpec?: any): Promise<any[]> {
   try {
@@ -420,7 +445,7 @@ export async function detectText(imageBytes: Buffer, contextSpec?: any): Promise
 }
 
 /**
- * Extract text from identity documents
+ * Extract text from identity documents using AWS Textract
  */
 export async function extractTextFromDocument(
   imageBytes: Uint8Array,
@@ -432,18 +457,29 @@ export async function extractTextFromDocument(
   error?: string;
 }> {
   try {
-    const rekognitionClient = await getRekognitionClient(contextSpec);
-    const command = new DetectTextCommand({
-      Image: { Bytes: imageBytes },
+    const textractClient = await getTextractClient(contextSpec);
+    
+    // Use Textract's DetectDocumentText for simple text detection
+    const command = new DetectDocumentTextCommand({
+      Document: { Bytes: imageBytes },
     });
 
-    const response = await rekognitionClient.send(command);
-    const textDetections = response.TextDetections || [];
+    const response = await textractClient.send(command);
+    const blocks = response.Blocks || [];
+
+    // Convert Textract blocks to Rekognition-compatible format for backward compatibility
+    const textDetections = blocks
+      .filter(block => block.BlockType === 'LINE')
+      .map(block => ({
+        Type: 'LINE',
+        DetectedText: block.Text || '',
+        Confidence: block.Confidence || 0,
+        Geometry: block.Geometry
+      }));
 
     // Extract all detected text
     const extractedText = textDetections
-      .filter(detection => detection.Type === 'LINE')
-      .map(detection => detection.DetectedText || '')
+      .map(detection => detection.DetectedText)
       .join('\n');
 
     return {
@@ -458,6 +494,89 @@ export async function extractTextFromDocument(
       detectedText: [],
       success: false,
       error: 'Failed to extract text from document'
+    };
+  }
+}
+
+/**
+ * Advanced document analysis using Textract AnalyzeDocument
+ * Extracts structured data from documents like forms and key-value pairs
+ */
+export async function analyzeDocument(
+  imageBytes: Uint8Array,
+  contextSpec?: any
+): Promise<{
+  keyValuePairs: { [key: string]: string };
+  tables: any[];
+  text: string;
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const textractClient = await getTextractClient(contextSpec);
+    
+    const command = new AnalyzeDocumentCommand({
+      Document: { Bytes: imageBytes },
+      FeatureTypes: ['FORMS', 'TABLES'], // Extract forms and tables
+    });
+
+    const response = await textractClient.send(command);
+    const blocks = response.Blocks || [];
+
+    // Extract key-value pairs
+    const keyValuePairs: { [key: string]: string } = {};
+    const keyBlocks = blocks.filter(block => block.BlockType === 'KEY_VALUE_SET' && block.EntityTypes?.includes('KEY'));
+    
+    for (const keyBlock of keyBlocks) {
+      if (keyBlock.Relationships) {
+        const valueRelationship = keyBlock.Relationships.find(rel => rel.Type === 'VALUE');
+        const childRelationship = keyBlock.Relationships.find(rel => rel.Type === 'CHILD');
+        
+        if (valueRelationship && childRelationship) {
+          const keyText = childRelationship.Ids?.map(id => {
+            const childBlock = blocks.find(b => b.Id === id);
+            return childBlock?.Text || '';
+          }).join(' ').trim();
+          
+          const valueId = valueRelationship.Ids?.[0];
+          const valueBlock = blocks.find(b => b.Id === valueId);
+          const valueChildIds = valueBlock?.Relationships?.find(rel => rel.Type === 'CHILD')?.Ids;
+          
+          const valueText = valueChildIds?.map(id => {
+            const childBlock = blocks.find(b => b.Id === id);
+            return childBlock?.Text || '';
+          }).join(' ').trim();
+          
+          if (keyText && valueText) {
+            keyValuePairs[keyText] = valueText;
+          }
+        }
+      }
+    }
+
+    // Extract tables (simplified)
+    const tables = blocks.filter(block => block.BlockType === 'TABLE');
+
+    // Extract all text
+    const text = blocks
+      .filter(block => block.BlockType === 'LINE')
+      .map(block => block.Text || '')
+      .join('\n');
+
+    return {
+      keyValuePairs,
+      tables,
+      text,
+      success: true,
+    };
+  } catch (error) {
+    console.error('Error analyzing document:', error);
+    return {
+      keyValuePairs: {},
+      tables: [],
+      text: '',
+      success: false,
+      error: 'Failed to analyze document'
     };
   }
 }

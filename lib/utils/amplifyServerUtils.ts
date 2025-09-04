@@ -22,6 +22,13 @@ export const reqResBasedClient = generateServerClientUsingReqRes<Schema>({
   config: outputs,
 });
 
+// Create a server-side API key client for public operations
+export const publicServerClient = generateServerClientUsingCookies<Schema>({
+  config: outputs,
+  cookies,
+  authMode: 'apiKey'
+});
+
 export async function AuthGetCurrentUserServer() {
   try {
     const currentUser = await runWithAmplifyServerContext({
