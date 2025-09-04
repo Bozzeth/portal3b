@@ -7,11 +7,8 @@ import { getCurrentUser } from 'aws-amplify/auth/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const result = await runWithAmplifyServerContext({
-      nextServerContext: { request: req },
-      operation: async (contextSpec) => {
-        console.log('SevisPass registration started');
-        const body = await req.json();
+    console.log('SevisPass registration started');
+    const body = await req.json();
     const { 
       documentType, 
       documentImage, 
@@ -28,38 +25,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('Starting text extraction from document');
-    // Extract text from document
-    const documentBytes = base64ToUint8Array(documentImage);
-    const textExtractionResult = await extractTextFromDocument(documentBytes);
-    console.log('Text extraction completed:', textExtractionResult.success);
+    const result = await runWithAmplifyServerContext({
+      nextServerContext: { request: req },
+      operation: async (contextSpec) => {
+        console.log('Starting text extraction from document');
+        // Extract text from document
+        const documentBytes = base64ToUint8Array(documentImage);
+        const textExtractionResult = await extractTextFromDocument(documentBytes);
+        console.log('Text extraction completed:', textExtractionResult.success);
 
-    // Extract document information from the text or fallback
-    let extractedInfo = {
-      fullName: applicantInfo.fullName || 'Unknown User',
-      dateOfBirth: applicantInfo.dateOfBirth || '1990-01-01',
-      documentNumber: textExtractionResult.text.match(/[A-Z]{2}\d{6,8}|P\d{7}|\d{8,12}/)?.[0] || 'DOC123456789',
-      nationality: 'Papua New Guinea'
-    };
+        // Extract document information from the text or fallback
+        let extractedInfo = {
+          fullName: applicantInfo.fullName || 'Unknown User',
+          dateOfBirth: applicantInfo.dateOfBirth || '1990-01-01',
+          documentNumber: textExtractionResult.text.match(/[A-Z]{2}\d{6,8}|P\d{7}|\d{8,12}/)?.[0] || 'DOC123456789',
+          nationality: 'Papua New Guinea'
+        };
 
-    // Try to extract text-based information if available
-    if (textExtractionResult.success && textExtractionResult.text) {
-      // Look for name patterns in extracted text
-      const nameMatch = textExtractionResult.text.match(/[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+/);
-      if (nameMatch) {
-        extractedInfo.fullName = nameMatch[0];
-      }
-      
-      // Look for date patterns
-      const dateMatch = textExtractionResult.text.match(/\d{1,2}[-/]\d{1,2}[-/]\d{4}/);
-      if (dateMatch) {
-        const [day, month, year] = dateMatch[0].split(/[-/]/);
-        extractedInfo.dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      }
-    }
+        // Try to extract text-based information if available
+        if (textExtractionResult.success && textExtractionResult.text) {
+          // Look for name patterns in extracted text
+          const nameMatch = textExtractionResult.text.match(/[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+/);
+          if (nameMatch) {
+            extractedInfo.fullName = nameMatch[0];
+          }
+          
+          // Look for date patterns
+          const dateMatch = textExtractionResult.text.match(/\d{1,2}[-/]\d{1,2}[-/]\d{4}/);
+          if (dateMatch) {
+            const [day, month, year] = dateMatch[0].split(/[-/]/);
+            extractedInfo.dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          }
+        }
 
-    // Generate application ID
-    const applicationId = generateApplicationId();
+        // Generate application ID
+        const applicationId = generateApplicationId();
     
         // Get current authenticated user using context
         const currentUser = await getCurrentUser(contextSpec);
