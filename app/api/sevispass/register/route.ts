@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySevisPassRegistration, base64ToUint8Array, extractTextFromDocument } from '@/lib/aws/rekognition';
 import { generateUIN, generateApplicationId } from '@/lib/utils/sevispass';
-import { SevisPassStore } from '@/lib/store/sevispass-store';
+import { SevisPassService } from '@/lib/services/sevispass-service';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,11 +52,25 @@ export async function POST(req: NextRequest) {
 
     // Generate application ID
     const applicationId = generateApplicationId();
-    const userId = await SevisPassStore.getUserIdFromRequest(req);
     
-    if (!userId) {
+    // Get user ID from JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.slice(7);
+    let userId: string;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userId = payload.sub || payload['cognito:username'];
+      if (!userId) throw new Error('No user ID in token');
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid authentication token' },
         { status: 401 }
       );
     }
@@ -71,7 +86,7 @@ export async function POST(req: NextRequest) {
       // Auto-approved - generate final UIN and save
       const finalUIN = generateUIN();
       
-      SevisPassStore.saveApplication(userId, {
+      await SevisPassService.saveApplication(userId, {
         applicationId,
         status: 'approved',
         submittedAt: new Date().toISOString(),
@@ -84,7 +99,7 @@ export async function POST(req: NextRequest) {
         },
         uin: finalUIN,
         issuedAt: new Date().toISOString()
-      });
+      }, documentImage, selfieImage);
       
       return NextResponse.json({
         success: true,
@@ -96,7 +111,7 @@ export async function POST(req: NextRequest) {
       });
     } else if (verificationResult.requiresManualReview) {
       // Requires manual review - save to review queue
-      SevisPassStore.saveApplication(userId, {
+      await SevisPassService.saveApplication(userId, {
         applicationId,
         status: 'under_review',
         submittedAt: new Date().toISOString(),
@@ -106,7 +121,7 @@ export async function POST(req: NextRequest) {
           confidence: verificationResult.confidence,
           requiresManualReview: true
         }
-      });
+      }, documentImage, selfieImage);
       
       return NextResponse.json({
         success: true,
@@ -118,7 +133,7 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // Rejected - still save for audit trail
-      SevisPassStore.saveApplication(userId, {
+      await SevisPassService.saveApplication(userId, {
         applicationId,
         status: 'rejected',
         submittedAt: new Date().toISOString(),
@@ -129,7 +144,7 @@ export async function POST(req: NextRequest) {
           requiresManualReview: false
         },
         rejectionReason: verificationResult.error || 'Verification failed - insufficient confidence score'
-      });
+      }, documentImage, selfieImage);
       
       return NextResponse.json({
         success: false,

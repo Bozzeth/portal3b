@@ -12,6 +12,64 @@ const schema = a.schema({
       content: a.string(),
     })
     .authorization((allow) => [allow.publicApiKey()]),
+
+  SevisPassApplication: a
+    .model({
+      userId: a.string().required(),
+      applicationId: a.string().required(),
+      status: a.enum(['pending', 'under_review', 'approved', 'rejected']),
+      submittedAt: a.datetime().required(),
+      documentType: a.string().required(),
+      documentImageKey: a.string(), // S3 key for document image
+      selfieImageKey: a.string(),   // S3 key for selfie image
+      
+      // Extracted information from document
+      fullName: a.string(),
+      dateOfBirth: a.date(),
+      documentNumber: a.string(),
+      nationality: a.string().default('Papua New Guinea'),
+      
+      // Verification data
+      confidence: a.float(),
+      requiresManualReview: a.boolean().default(false),
+      faceId: a.string(), // AWS Rekognition face ID
+      
+      // Approval/Rejection data
+      uin: a.string(),
+      issuedAt: a.datetime(),
+      rejectionReason: a.string(),
+      reviewedBy: a.string(),
+      reviewedAt: a.datetime(),
+    })
+    .authorization((allow) => [
+      allow.owner().to(['create', 'read', 'update']),
+      allow.groupsOfField('reviewedBy').to(['read', 'update']),
+      allow.group('ADMIN').to(['read', 'update']),
+      allow.group('DICT_OFFICER').to(['read', 'update'])
+    ])
+    .identifier(['userId']),
+
+  SevisPassHolder: a
+    .model({
+      userId: a.string().required(),
+      uin: a.string().required(),
+      fullName: a.string().required(),
+      dateOfBirth: a.date(),
+      documentNumber: a.string(),
+      nationality: a.string().default('Papua New Guinea'),
+      issuedAt: a.datetime().required(),
+      expiryDate: a.datetime(),
+      status: a.enum(['active', 'suspended', 'revoked']).default('active'),
+      faceId: a.string(), // AWS Rekognition face ID for login
+      documentImageKey: a.string(),
+      photoImageKey: a.string(),
+    })
+    .authorization((allow) => [
+      allow.owner().to(['read']),
+      allow.group('ADMIN').to(['read', 'update']),
+      allow.group('DICT_OFFICER').to(['read'])
+    ])
+    .identifier(['uin']),
 });
 
 export type Schema = ClientSchema<typeof schema>;
@@ -19,7 +77,10 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: "apiKey",
+    defaultAuthorizationMode: "userPool",
+    userPoolAuthorizationMode: {
+      userPoolId: "default",
+    },
     apiKeyAuthorizationMode: {
       expiresInDays: 30,
     },

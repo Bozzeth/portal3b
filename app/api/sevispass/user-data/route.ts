@@ -1,19 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SevisPassStore } from '@/lib/store/sevispass-store';
+import { SevisPassService } from '@/lib/services/sevispass-service';
 
 export async function GET(request: NextRequest) {
   try {
     // Get user ID from JWT token
-    const userId = await SevisPassStore.getUserIdFromRequest(request);
-    
-    if (!userId) {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({
         error: 'Authentication required'
       }, { status: 401 });
     }
+
+    const token = authHeader.slice(7);
+    let userId: string;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userId = payload.sub || payload['cognito:username'];
+      if (!userId) throw new Error('No user ID in token');
+    } catch (error) {
+      return NextResponse.json({
+        error: 'Invalid authentication token'
+      }, { status: 401 });
+    }
     
-    // Get the actual application data
-    const application = SevisPassStore.getApplication(userId);
+    // Check for approved SevisPass first
+    const sevisPassHolder = await SevisPassService.getSevisPassHolder(userId);
+    
+    if (sevisPassHolder) {
+      // User has an approved SevisPass
+      return NextResponse.json({
+        exists: true,
+        hasApplication: true,
+        applicationStatus: 'approved',
+        data: sevisPassHolder
+      });
+    }
+    
+    // Check for application
+    const application = await SevisPassService.getApplication(userId);
     
     if (!application) {
       // No application found
@@ -24,26 +48,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (application.status === 'approved' && application.uin) {
-      // Application approved - return SevisPass data with real extracted info
-      return NextResponse.json({
-        exists: true,
-        hasApplication: true,
-        applicationStatus: 'approved',
-        data: {
-          uin: application.uin,
-          fullName: application.extractedInfo.fullName,
-          dateOfBirth: application.extractedInfo.dateOfBirth,
-          documentNumber: application.extractedInfo.documentNumber,
-          nationality: application.extractedInfo.nationality,
-          issuedDate: application.issuedAt || application.submittedAt,
-          expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years from now
-          status: 'active' as const,
-          confidence: application.verificationData.confidence,
-          photo: undefined // In production, this would be the user's registered photo
-        }
-      });
-    } else if (application.status === 'under_review' || application.status === 'pending') {
+    if (application.status === 'under_review' || application.status === 'pending') {
       // Application under review
       return NextResponse.json({
         exists: false,
