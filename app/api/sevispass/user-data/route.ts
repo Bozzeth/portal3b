@@ -1,70 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SevisPassStore } from '@/lib/store/sevispass-store';
 
 export async function GET(request: NextRequest) {
   try {
-    // In a real implementation, you would:
-    // 1. Get the authenticated user from the request
-    // 2. Query your database for their SevisPass registration and applications
-    // 3. Return their actual data and status
+    // Get user ID from request (in production, this would be from JWT token)
+    const userId = SevisPassStore.getUserIdFromRequest();
     
-    // For demo purposes, simulate different application states
-    // In production, this would check actual database records
+    // Get the actual application data
+    const application = SevisPassStore.getApplication(userId);
     
-    const mockApplicationStatus = Math.random();
-    
-    if (mockApplicationStatus < 0.3) {
-      // 30% chance - Application under review
-      return NextResponse.json({
-        exists: false,
-        hasApplication: true,
-        applicationStatus: 'under_review',
-        applicationData: {
-          applicationId: 'APP-' + Date.now(),
-          submittedAt: new Date().toISOString(),
-          expectedReviewTime: '3-5 business days',
-          documentType: 'passport',
-          status: 'pending'
-        }
-      });
-    } else if (mockApplicationStatus < 0.5) {
-      // 20% chance - Application approved, SevisPass ready
-      return NextResponse.json({
-        exists: true,
-        hasApplication: true,
-        applicationStatus: 'approved',
-        data: {
-          uin: 'PNG1234567890',
-          fullName: 'John Doe',
-          dateOfBirth: '1990-01-01',
-          issuedDate: new Date().toISOString(),
-          expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
-          status: 'active' as const,
-          photo: undefined
-        }
-      });
-    } else if (mockApplicationStatus < 0.6) {
-      // 10% chance - Application rejected
-      return NextResponse.json({
-        exists: false,
-        hasApplication: true,
-        applicationStatus: 'rejected',
-        applicationData: {
-          applicationId: 'APP-' + Date.now(),
-          submittedAt: new Date().toISOString(),
-          rejectedAt: new Date().toISOString(),
-          rejectionReason: 'Document quality insufficient. Please resubmit with clearer images.',
-          status: 'rejected',
-          canReapply: true
-        }
-      });
-    } else {
-      // 40% chance - No application submitted yet
+    if (!application) {
+      // No application found
       return NextResponse.json({
         exists: false,
         hasApplication: false,
         data: null
       });
     }
+
+    if (application.status === 'approved' && application.uin) {
+      // Application approved - return SevisPass data with real extracted info
+      return NextResponse.json({
+        exists: true,
+        hasApplication: true,
+        applicationStatus: 'approved',
+        data: {
+          uin: application.uin,
+          fullName: application.extractedInfo.fullName,
+          dateOfBirth: application.extractedInfo.dateOfBirth,
+          documentNumber: application.extractedInfo.documentNumber,
+          nationality: application.extractedInfo.nationality,
+          issuedDate: application.issuedAt || application.submittedAt,
+          expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years from now
+          status: 'active' as const,
+          confidence: application.verificationData.confidence,
+          photo: undefined // In production, this would be the user's registered photo
+        }
+      });
+    } else if (application.status === 'under_review' || application.status === 'pending') {
+      // Application under review
+      return NextResponse.json({
+        exists: false,
+        hasApplication: true,
+        applicationStatus: 'under_review',
+        applicationData: {
+          applicationId: application.applicationId,
+          submittedAt: application.submittedAt,
+          expectedReviewTime: '3-5 business days',
+          documentType: application.documentType,
+          extractedInfo: application.extractedInfo,
+          confidence: application.verificationData.confidence,
+          status: 'pending'
+        }
+      });
+    } else if (application.status === 'rejected') {
+      // Application rejected
+      return NextResponse.json({
+        exists: false,
+        hasApplication: true,
+        applicationStatus: 'rejected',
+        applicationData: {
+          applicationId: application.applicationId,
+          submittedAt: application.submittedAt,
+          rejectedAt: application.reviewedAt || application.submittedAt,
+          rejectionReason: application.rejectionReason || 'Application did not meet verification requirements.',
+          extractedInfo: application.extractedInfo,
+          confidence: application.verificationData.confidence,
+          status: 'rejected',
+          canReapply: true
+        }
+      });
+    }
+
+    // Fallback - no application
+    return NextResponse.json({
+      exists: false,
+      hasApplication: false,
+      data: null
+    });
 
   } catch (error) {
     console.error('Error fetching user SevisPass data:', error);
