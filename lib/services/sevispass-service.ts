@@ -1,9 +1,10 @@
 // SevisPass Service - Real Amplify Gen 2 DynamoDB integration
 import { uploadData } from 'aws-amplify/storage';
 import { getUrl } from 'aws-amplify/storage/server';
+import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '@/amplify/data/resource';
 import { generateUIN, generateApplicationId } from '@/lib/utils/sevispass';
-import { cookiesClient } from '@/lib/utils/amplifyServerUtils';
+import { cookiesClient, runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
 import { Amplify } from 'aws-amplify';
 import outputs from '@/amplify_outputs.json';
 
@@ -40,7 +41,8 @@ export class SevisPassService {
     applicationData: Omit<SevisPassApplicationData, 'userId'>,
     documentImageBase64: string,
     selfieImageBase64: string,
-    request: Request
+    request: Request,
+    authToken?: string
   ): Promise<void> {
     try {
       console.log('Starting saveApplication for userId:', userId);
@@ -78,8 +80,14 @@ export class SevisPassService {
       console.log('S3 uploads completed');
 
       console.log('Starting DynamoDB SevisPassApplication create');
-      // Save to DynamoDB using server cookies client for authenticated users
-      await cookiesClient.models.SevisPassApplication.create({
+      // Create authenticated client with user token
+      const client = authToken ? generateClient<Schema>({
+        authMode: 'userPool',
+        authToken
+      }) : cookiesClient;
+      
+      // Save to DynamoDB using authenticated client
+      await client.models.SevisPassApplication.create({
         userId,
         applicationId: applicationData.applicationId,
         status: applicationData.status,
@@ -102,10 +110,10 @@ export class SevisPassService {
       });
       console.log('DynamoDB SevisPassApplication created successfully');
 
-      // If approved, also create SevisPassHolder record using server cookies client
+      // If approved, also create SevisPassHolder record using same authenticated client
       if (applicationData.status === 'approved' && applicationData.uin) {
         console.log('Creating SevisPassHolder record');
-        await cookiesClient.models.SevisPassHolder.create({
+        await client.models.SevisPassHolder.create({
           userId,
           uin: applicationData.uin,
           fullName: applicationData.extractedInfo.fullName,

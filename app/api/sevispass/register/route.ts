@@ -3,9 +3,14 @@ import { verifySevisPassRegistration, base64ToUint8Array, extractTextFromDocumen
 import { generateUIN, generateApplicationId } from '@/lib/utils/sevispass';
 import { SevisPassService } from '@/lib/services/sevispass-service';
 import { AuthGetCurrentUserServer } from '@/lib/utils/amplifyServerUtils';
+import { Amplify } from 'aws-amplify';
+import outputs from '@/amplify_outputs.json';
 
 export async function POST(req: NextRequest) {
   try {
+    // Configure Amplify for server-side usage
+    Amplify.configure(outputs);
+    
     console.log('SevisPass registration started');
     const body = await req.json();
     const { 
@@ -57,16 +62,27 @@ export async function POST(req: NextRequest) {
     // Generate application ID
     const applicationId = generateApplicationId();
     
-    // Get current authenticated user
-    const currentUser = await AuthGetCurrentUserServer();
-    if (!currentUser || !currentUser.userId) {
+    // Get user ID from JWT token  
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
-    
-    const userId = currentUser.userId;
+
+    const token = authHeader.slice(7);
+    let userId: string;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userId = payload.sub || payload['cognito:username'];
+      if (!userId) throw new Error('No user ID in token');
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid authentication token' },
+        { status: 401 }
+      );
+    }
 
     console.log('Starting SevisPass verification');
     // Verify the registration
@@ -95,7 +111,7 @@ export async function POST(req: NextRequest) {
         },
         uin: finalUIN,
         issuedAt: new Date().toISOString()
-      }, documentImage, selfieImage, req);
+      }, documentImage, selfieImage, req, token);
       console.log('Application saved successfully');
       
       return NextResponse.json({
@@ -119,7 +135,7 @@ export async function POST(req: NextRequest) {
           confidence: verificationResult.confidence,
           requiresManualReview: true
         }
-      }, documentImage, selfieImage, req);
+      }, documentImage, selfieImage, req, token);
       console.log('Review application saved successfully');
       
       return NextResponse.json({
@@ -144,7 +160,7 @@ export async function POST(req: NextRequest) {
           requiresManualReview: false
         },
         rejectionReason: verificationResult.error || 'Verification failed - insufficient confidence score'
-      }, documentImage, selfieImage, req);
+      }, documentImage, selfieImage, req, token);
       console.log('Rejected application saved successfully');
       
       return NextResponse.json({

@@ -65,7 +65,7 @@ const schema = a.schema({
       photoImageKey: a.string(),
     })
     .authorization((allow) => [
-      allow.owner().to(['read']),
+      allow.owner().to(['read', 'create']),
       allow.group('ADMIN').to(['read', 'update', 'create']),
       allow.group('DICT_OFFICER').to(['read', 'create'])
     ])
