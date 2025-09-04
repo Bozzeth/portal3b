@@ -93,7 +93,18 @@ export class SevisPassStore {
   // Function to get user ID from request (simplified for demo)
   static getUserIdFromRequest(request?: any): string {
     // In production, this would extract user ID from JWT token or session
-    // For now, return a demo user ID based on timestamp for testing
-    return 'demo-user-' + Date.now().toString().slice(-6);
+    // For now, use a consistent demo user ID for testing
+    if (typeof window !== 'undefined') {
+      // Client-side: use session storage for consistency
+      let userId = sessionStorage.getItem('demo-user-id');
+      if (!userId) {
+        userId = 'demo-user-' + Date.now().toString().slice(-6);
+        sessionStorage.setItem('demo-user-id', userId);
+      }
+      return userId;
+    } else {
+      // Server-side: use a fixed demo user ID
+      return 'demo-user-server';
+    }
   }
 }
