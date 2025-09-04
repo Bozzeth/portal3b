@@ -41,7 +41,7 @@ export class SevisPassService {
     applicationData: Omit<SevisPassApplicationData, 'userId'>,
     documentImageBase64: string,
     selfieImageBase64: string,
-    request: Request
+    contextSpec: any
   ): Promise<void> {
     try {
       console.log('Starting saveApplication for userId:', userId);
@@ -76,59 +76,47 @@ export class SevisPassService {
       console.log('S3 uploads completed');
 
       console.log('Starting DynamoDB SevisPassApplication create');
-      // Save to DynamoDB using request/response based client with server context
-      await runWithAmplifyServerContext({
-        nextServerContext: { request },
-        operation: async (contextSpec) => {
-          const { data } = await reqResBasedClient.models.SevisPassApplication.create({
-            userId,
-            applicationId: applicationData.applicationId,
-            status: applicationData.status,
-            submittedAt: applicationData.submittedAt,
-            documentType: applicationData.documentType,
-            documentImageKey: documentKey,
-            selfieImageKey: selfieKey,
-            fullName: applicationData.extractedInfo.fullName,
-            dateOfBirth: applicationData.extractedInfo.dateOfBirth,
-            documentNumber: applicationData.extractedInfo.documentNumber,
-            nationality: applicationData.extractedInfo.nationality,
-            confidence: applicationData.verificationData.confidence,
-            requiresManualReview: applicationData.verificationData.requiresManualReview,
-            faceId: applicationData.verificationData.faceId,
-            uin: applicationData.uin,
-            issuedAt: applicationData.issuedAt,
-            rejectionReason: applicationData.rejectionReason,
-            reviewedBy: applicationData.reviewedBy,
-            reviewedAt: applicationData.reviewedAt,
-          }, contextSpec);
-          return data;
-        }
-      });
+      // Save to DynamoDB using provided context
+      const { data } = await reqResBasedClient.models.SevisPassApplication.create({
+        userId,
+        applicationId: applicationData.applicationId,
+        status: applicationData.status,
+        submittedAt: applicationData.submittedAt,
+        documentType: applicationData.documentType,
+        documentImageKey: documentKey,
+        selfieImageKey: selfieKey,
+        fullName: applicationData.extractedInfo.fullName,
+        dateOfBirth: applicationData.extractedInfo.dateOfBirth,
+        documentNumber: applicationData.extractedInfo.documentNumber,
+        nationality: applicationData.extractedInfo.nationality,
+        confidence: applicationData.verificationData.confidence,
+        requiresManualReview: applicationData.verificationData.requiresManualReview,
+        faceId: applicationData.verificationData.faceId,
+        uin: applicationData.uin,
+        issuedAt: applicationData.issuedAt,
+        rejectionReason: applicationData.rejectionReason,
+        reviewedBy: applicationData.reviewedBy,
+        reviewedAt: applicationData.reviewedAt,
+      }, contextSpec);
       console.log('DynamoDB SevisPassApplication created successfully');
 
-      // If approved, also create SevisPassHolder record using same server context
+      // If approved, also create SevisPassHolder record using provided context
       if (applicationData.status === 'approved' && applicationData.uin) {
         console.log('Creating SevisPassHolder record');
-        await runWithAmplifyServerContext({
-          nextServerContext: { request },
-          operation: async (contextSpec) => {
-            const { data } = await reqResBasedClient.models.SevisPassHolder.create({
-              userId,
-              uin: applicationData.uin,
-              fullName: applicationData.extractedInfo.fullName,
-              dateOfBirth: applicationData.extractedInfo.dateOfBirth,
-              documentNumber: applicationData.extractedInfo.documentNumber,
-              nationality: applicationData.extractedInfo.nationality,
-              issuedAt: applicationData.issuedAt!,
-              expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
-              status: 'active', // Explicitly set default status
-              faceId: applicationData.verificationData.faceId,
-              documentImageKey: documentKey,
-              photoImageKey: selfieKey,
-            }, contextSpec);
-            return data;
-          }
-        });
+        const { data: holderData } = await reqResBasedClient.models.SevisPassHolder.create({
+          userId,
+          uin: applicationData.uin,
+          fullName: applicationData.extractedInfo.fullName,
+          dateOfBirth: applicationData.extractedInfo.dateOfBirth,
+          documentNumber: applicationData.extractedInfo.documentNumber,
+          nationality: applicationData.extractedInfo.nationality,
+          issuedAt: applicationData.issuedAt!,
+          expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
+          status: 'active', // Explicitly set default status
+          faceId: applicationData.verificationData.faceId,
+          documentImageKey: documentKey,
+          photoImageKey: selfieKey,
+        }, contextSpec);
         console.log('SevisPassHolder record created successfully');
       }
 
