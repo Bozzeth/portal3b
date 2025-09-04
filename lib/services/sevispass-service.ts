@@ -195,12 +195,12 @@ export class SevisPassService {
       
       // Get photo URL from S3
       let photoUrl = undefined;
-      if (holder.photoImageKey) {
+      if (holder.photoImageKey && typeof holder.photoImageKey === 'string') {
         try {
           const urlResult = await runWithAmplifyServerContext({
             nextServerContext: null,
             operation: (contextSpec) => getUrl(contextSpec, {
-              path: holder.photoImageKey
+              key: holder.photoImageKey as string
             })
           });
           photoUrl = urlResult.url.toString();
