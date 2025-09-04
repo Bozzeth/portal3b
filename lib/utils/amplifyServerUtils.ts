@@ -2,8 +2,12 @@ import { createServerRunner } from '@aws-amplify/adapter-nextjs';
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/data';
 import { getCurrentUser } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
+import { Amplify } from 'aws-amplify';
 import type { Schema } from '@/amplify/data/resource';
 import outputs from '@/amplify_outputs.json';
+
+// Configure Amplify once
+Amplify.configure(outputs);
 
 export const { runWithAmplifyServerContext } = createServerRunner({
   config: outputs

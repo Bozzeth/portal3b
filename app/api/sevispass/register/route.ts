@@ -8,9 +8,6 @@ import outputs from '@/amplify_outputs.json';
 
 export async function POST(req: NextRequest) {
   try {
-    // Configure Amplify for server-side usage
-    Amplify.configure(outputs);
-    
     console.log('SevisPass registration started');
     const body = await req.json();
     const { 

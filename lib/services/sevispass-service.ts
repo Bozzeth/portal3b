@@ -47,9 +47,6 @@ export class SevisPassService {
     try {
       console.log('Starting saveApplication for userId:', userId);
       
-      // Configure Amplify for server-side usage
-      Amplify.configure(outputs);
-      
       // Upload images to S3 using public prefix (temporary - TODO: implement proper server-side auth)
       const documentKey = `public/sevispass/documents/${userId}/${applicationData.applicationId}/document.jpg`;
       const selfieKey = `public/sevispass/faces/${userId}/${applicationData.applicationId}/selfie.jpg`;
