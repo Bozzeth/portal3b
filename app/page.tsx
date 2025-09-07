@@ -2,6 +2,7 @@
 
 import { Footer } from "@/components/layout/Footer";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { LogoInline } from "@/components/ui/Logo";
 import { useState } from "react";
 
 export default function LandingPage() {
@@ -76,7 +77,7 @@ export default function LandingPage() {
               left: 0,
               right: 0,
               height: "4px",
-              background: "linear-gradient(90deg, #DC2626 0%, #FCD34D 100%)",
+              background: "var(--brand-gradient)",
             }}
           ></div>
 
@@ -113,18 +114,9 @@ export default function LandingPage() {
             {/* Left Column - Content */}
             <div className="hero-content">
               <div style={{ marginBottom: "60px" }}>
-                <h1
-                  style={{
-                    fontSize: "clamp(40px, 6vw, 64px)",
-                    fontWeight: "700",
-                    marginBottom: "16px",
-                    letterSpacing: "-0.01em",
-                    color: "var(--foreground)",
-                    textAlign: "left",
-                  }}
-                >
-                  SevisPortal
-                </h1>
+                <div style={{ marginBottom: '24px' }}>
+                  <LogoInline size="large" showText={true} variant="horizontal" />
+                </div>
                 <p
                   style={{
                     fontSize: "clamp(16px, 2vw, 20px)",

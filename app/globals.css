@@ -1,32 +1,44 @@
 :root {
-  /* Minimalist government theme - Light mode */
-  --primary: #1F2937; /* Dark Gray */
-  --secondary: #4B5563; /* Medium Dark Gray */
+  /* Sevis Portal theme - Light mode with yellow bird branding */
+  --primary: #865A0C; /* Golden Brown */
+  --secondary: #F0CA0C; /* Jonquil Yellow */
   --background: #ffffff; /* White */
-  --foreground: #111827; /* Near Black - Dark text for light background */
+  --foreground: #1C1B1C; /* Eerie Black */
   --muted-foreground: #6B7280; /* Medium Gray for secondary text */
-  --accent: #F3F4F6; /* Light Gray */
+  --accent: #F3EC98; /* Flax - Light Yellow */
   --muted: #F9FAFB;
   --border: #E5E7EB;
   --input: #ffffff;
-  --ring: #1F2937;
+  --ring: #865A0C;
   --destructive: #DC2626;
   --destructive-foreground: #ffffff;
   --card: #ffffff;
-  --card-foreground: #111827;
+  --card-foreground: #1C1B1C;
+  --success: #10B981;
+  
+  /* Sevis brand colors */
+  --flax: #F3EC98;
+  --jonquil: #F0CA0C;
+  --golden-brown: #865A0C;
+  --eerie-black: #1C1B1C;
+  --eerie-black-2: #1F1D1B;
+  
+  /* Gradients */
+  --brand-gradient: linear-gradient(135deg, #F3EC98, #F0CA0C, #865A0C);
+  --hero-gradient: linear-gradient(135deg, #F3EC98 0%, #F0CA0C 50%, #865A0C 100%);
   
   --max-width: 1200px;
   --border-radius: 6px;
 }
 
 [data-theme="dark"] {
-  /* Minimalist government theme - Dark mode */
-  --primary: #E5E7EB; /* Light Gray */
-  --secondary: #D1D5DB; /* Medium Light Gray */
-  --background: #111827; /* Dark Navy */
-  --foreground: #F9FAFB; /* Off White */
+  /* Sevis Portal theme - Dark mode */
+  --primary: #F0CA0C; /* Jonquil Yellow */
+  --secondary: #F3EC98; /* Flax */
+  --background: #1C1B1C; /* Eerie Black */
+  --foreground: #F3EC98; /* Light Flax */
   --muted-foreground: #D1D5DB; /* Light Gray for secondary text */
-  --accent: #1F2937; /* Dark Gray */
+  --accent: #1F1D1B; /* Eerie Black 2 */
   --muted: #374151;
   --border: #4B5563;
   --input: #1F2937;
