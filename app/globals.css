@@ -1,19 +1,19 @@
 :root {
   /* Sevis Portal theme - Light mode with yellow bird branding */
-  --primary: #865A0C; /* Golden Brown */
-  --secondary: #F0CA0C; /* Jonquil Yellow */
+  --primary: #F0CA0C; /* Jonquil Yellow - bright and friendly */
+  --secondary: #FFA500; /* Warmer orange instead of brown */
   --background: #ffffff; /* White */
-  --foreground: #1C1B1C; /* Eerie Black */
+  --foreground: #2D2D2D; /* Softer dark gray instead of harsh black */
   --muted-foreground: #6B7280; /* Medium Gray for secondary text */
-  --accent: #F3EC98; /* Flax - Light Yellow */
+  --accent: #FFF9E6; /* Very light cream/yellow */
   --muted: #F9FAFB;
   --border: #E5E7EB;
   --input: #ffffff;
-  --ring: #865A0C;
+  --ring: #F0CA0C;
   --destructive: #DC2626;
   --destructive-foreground: #ffffff;
   --card: #ffffff;
-  --card-foreground: #1C1B1C;
+  --card-foreground: #2D2D2D;
   --success: #10B981;
   
   /* Sevis brand colors */
@@ -23,9 +23,9 @@
   --eerie-black: #1C1B1C;
   --eerie-black-2: #1F1D1B;
   
-  /* Gradients */
-  --brand-gradient: linear-gradient(135deg, #F3EC98, #F0CA0C, #865A0C);
-  --hero-gradient: linear-gradient(135deg, #F3EC98 0%, #F0CA0C 50%, #865A0C 100%);
+  /* Gradients - lighter and more pleasant */
+  --brand-gradient: linear-gradient(135deg, #F3EC98, #F0CA0C, #FFA500);
+  --hero-gradient: linear-gradient(135deg, #FFF9E6 0%, #F3EC98 50%, #F0CA0C 100%);
   
   --max-width: 1200px;
   --border-radius: 6px;
