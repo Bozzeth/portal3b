@@ -52,24 +52,12 @@ function SevisPassViewContent() {
       console.log('✅ Current user:', currentUser);
       setUser(currentUser);
       
-      // Get the session to obtain the JWT token
-      console.log('🔑 Fetching auth session...');
-      const session = await fetchAuthSession();
-      const token = session.tokens?.accessToken?.toString();
-      console.log('🔑 Token available:', !!token);
-      
-      if (!token) {
-        console.error('❌ No access token available');
-        throw new Error('No access token available');
-      }
-      
       // Check if user has a registered SevisPass or pending application
-      console.log('🌐 Calling /api/sevispass/user-data...');
-      const response = await fetch('/api/sevispass/user-data', {
+      console.log('🌐 Calling /api/sevispass/user-data with userId:', currentUser.userId);
+      const response = await fetch(`/api/sevispass/user-data?userId=${encodeURIComponent(currentUser.userId)}`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
       });
       

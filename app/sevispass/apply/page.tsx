@@ -330,6 +330,7 @@ function SevisPassContent() {
         {currentView === 'register' && (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <SevisPassRegistration
+              user={user}
               onComplete={handleRegistrationComplete}
               onCancel={() => setCurrentView('main')}
             />

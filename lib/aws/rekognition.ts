@@ -824,55 +824,72 @@ export async function analyzeIdentityDocument(
       console.log('🔍 Looking for MRZ second line (document number, dates)...');
       
       // Look for the second MRZ line with document number
-      // Format: YYMMDDXNNNNNNNN9PNG9999999M2209304<<<<<<<<<<1
+      // Format: PASSPORT_NUMBER<PNG<YYMMDD<M<YYMMDD<PERSONAL_NUMBER<CHECK
       const mrzLine2Patterns = [
-        /([A-Z0-9]{8,9})[0-9]PNG[0-9]{7}[MF]([0-9]{6})[0-9]/i, // Standard format
-        /([A-Z]{1,2}[0-9]{6,8})[^A-Z]*PNG/i, // Document number before PNG
-        /PNG[^0-9]*([0-9]{6})/i // Date after PNG
+        /^([A-Z]{1,2}[0-9]{6,8})[<\s]*PNG[<\s]*([0-9]{6})[<\s]*[MF][<\s]*([0-9]{6})/im, // Standard passport MRZ format
+        /([A-Z]{1,2}[0-9]{6,8})[<\s]*PNG/im, // Document number before PNG (more flexible)
+        /^([A-Z0-9]{7,9})[<\s]*PNG[<\s]*([0-9]{6})/im, // Alternative format
+        // More flexible - find document number at start of line with PNG
+        /^([A-Z]{1,2}[0-9]{6,8})/m, // Just document number at line start
+        /([A-Z]{1,2}[0-9]{6,8})(?=.*PNG)/im // Document number anywhere in line with PNG
       ];
       
       for (const pattern of mrzLine2Patterns) {
         const match = allText.match(pattern);
         if (match) {
-          if (pattern.source.includes('PNG') && match[1] && match[1].length >= 6) {
-            if (!extractedData.documentNumber && /^[A-Z]{1,2}[0-9]{6,8}$/.test(match[1])) {
-              extractedData.documentNumber = match[1];
+          console.log('🔍 MRZ Line 2 match found:', match);
+          
+          // Extract document number (first capture group)
+          if (match[1] && !extractedData.documentNumber) {
+            const docNum = match[1].replace(/[<]/g, ''); // Remove padding characters
+            if (/^[A-Z]{1,2}[0-9]{6,8}$/.test(docNum)) {
+              extractedData.documentNumber = docNum;
               console.log('✅ Document number from MRZ:', extractedData.documentNumber);
-            }
-            
-            // Extract date info from MRZ if available
-            if (match[2] && match[2].length === 6) {
-              const dateStr = match[2];
-              const year = '20' + dateStr.substring(0, 2);
-              const month = dateStr.substring(2, 4);
-              const day = dateStr.substring(4, 6);
-              
-              if (month >= '01' && month <= '12' && day >= '01' && day <= '31') {
-                console.log('📅 Found expiry date in MRZ:', `${year}-${month}-${day}`);
-                // Don't overwrite DOB, but could extract expiry date for validation
-              }
             }
           }
           
-          // Try to extract DOB from MRZ second line (different position)
-          // Format: 0P17999<<2PNG8110099M2612236<<
-          // The 811009 part is YYMMDD for birth date (81-10-09 = 1981-10-09)
-          const dobMatch = allText.match(/([0-9]{6})[0-9M][0-9]{6}/);
-          if (dobMatch && !extractedData.dateOfBirth) {
-            const dobStr = dobMatch[1];
-            // Parse YYMMDD format
-            let year = parseInt(dobStr.substring(0, 2));
-            const month = dobStr.substring(2, 4);
-            const day = dobStr.substring(4, 6);
-            
-            // Convert YY to full year (assume 1900s for years > 50, 2000s for <= 50)
-            year = year > 50 ? 1900 + year : 2000 + year;
+          // Extract date of birth (second capture group - first date)
+          if (match[2] && match[2].length === 6 && !extractedData.dateOfBirth) {
+            const dateStr = match[2];
+            const year = '20' + dateStr.substring(0, 2);
+            const month = dateStr.substring(2, 4);
+            const day = dateStr.substring(4, 6);
             
             if (month >= '01' && month <= '12' && day >= '01' && day <= '31') {
-              extractedData.dateOfBirth = `${year}-${month}-${day}`;
-              console.log('📅 Extracted DOB from MRZ:', extractedData.dateOfBirth);
+              extractedData.dateOfBirth = `${day}/${month}/${year}`;
+              console.log('✅ Date of birth from MRZ:', extractedData.dateOfBirth);
             }
           }
+          
+          // Extract expiry date (third capture group - second date)
+          if (match[3] && match[3].length === 6) {
+            const expDateStr = match[3];
+            const expYear = '20' + expDateStr.substring(0, 2);
+            const expMonth = expDateStr.substring(2, 4);
+            const expDay = expDateStr.substring(4, 6);
+            console.log('ℹ️ Document expires:', `${expDay}/${expMonth}/${expYear}`);
+          }
+          break;
+        }
+      }
+      
+      // Try to extract DOB from MRZ second line (different position)
+      // Format: 0P17999<<2PNG8110099M2612236<<
+      // The 811009 part is YYMMDD for birth date (81-10-09 = 1981-10-09)
+      const dobMatch = allText.match(/([0-9]{6})[0-9M][0-9]{6}/);
+      if (dobMatch && !extractedData.dateOfBirth) {
+        const dobStr = dobMatch[1];
+        // Parse YYMMDD format
+        let year = parseInt(dobStr.substring(0, 2));
+        const month = dobStr.substring(2, 4);
+        const day = dobStr.substring(4, 6);
+        
+        // Convert YY to full year (assume 1900s for years > 50, 2000s for <= 50)
+        year = year > 50 ? 1900 + year : 2000 + year;
+        
+        if (month >= '01' && month <= '12' && day >= '01' && day <= '31') {
+          extractedData.dateOfBirth = `${year}-${month}-${day}`;
+          console.log('📅 Extracted DOB from MRZ:', extractedData.dateOfBirth);
         }
       }
     }

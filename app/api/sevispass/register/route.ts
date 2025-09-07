@@ -20,13 +20,13 @@ export async function POST(req: NextRequest) {
   try {
     console.log("SevisPass registration started - updated version");
     const body = await req.json();
-    const { documentType, documentImage, selfieImage, applicantInfo } = body;
+    const { userId, documentType, documentImage, selfieImage, applicantInfo } = body;
 
     // Validate required fields
-    if (!documentType || !documentImage || !selfieImage || !applicantInfo) {
+    if (!userId || !documentType || !documentImage || !selfieImage || !applicantInfo) {
       console.log("Missing required fields");
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields (userId, documentType, documentImage, selfieImage, applicantInfo)" },
         { status: 400 }
       );
     }
@@ -144,27 +144,7 @@ export async function POST(req: NextRequest) {
         // Generate application ID
         const applicationId = generateApplicationId();
 
-        // Get authenticated user using the server context properly
-        let userId;
-        try {
-          // Try to get current user - if this fails, user is not authenticated
-          const currentUser = await getCurrentUser(contextSpec);
-          userId = currentUser.userId;
-          console.log("Authenticated user:", userId);
-        } catch (authError) {
-          console.log("User not authenticated, extracting from cookies/headers...");
-          // Try to get user ID from request cookies or session
-          // This is a fallback when server context auth fails but user is actually logged in
-          const cookies = req.headers.get('cookie');
-          if (cookies) {
-            // Extract user ID from cookies if possible
-            // For now, use a deterministic ID based on session
-            userId = `fallback-user-${Date.now()}`;
-          } else {
-            userId = `guest-${Date.now()}-${Math.random().toString(36).substring(2)}`;
-          }
-          console.log("Generated fallback user ID:", userId);
-        }
+        console.log("Using userId from request body:", userId);
 
         console.log("Starting SevisPass verification");
         // Verify the registration

@@ -233,21 +233,28 @@ export class SevisPassService {
    */
   static async getSevisPassHolder(userId: string, request?: Request): Promise<any | null> {
     try {
+      console.log('🔍 getSevisPassHolder called for userId:', userId);
       let holders;
       try {
+        console.log('🔄 Trying cookiesClient for SevisPassHolder...');
         const result = await cookiesClient.models.SevisPassHolder.list({
           filter: { userId: { eq: userId }, status: { eq: 'active' } }
         });
         holders = result.data;
+        console.log('✅ cookiesClient result:', holders?.length || 0, 'holders found');
       } catch (authError) {
-        console.log('Cookies client failed for getSevisPassHolder, using public API key server client');
+        console.log('❌ Cookies client failed for getSevisPassHolder, using public API key server client');
+        console.log('Auth error details:', authError.message);
         const result = await publicServerClient.models.SevisPassHolder.list({
           filter: { userId: { eq: userId }, status: { eq: 'active' } }
         });
         holders = result.data;
+        console.log('✅ publicServerClient result:', holders?.length || 0, 'holders found');
       }
 
+      console.log('📊 Final holders array:', holders);
       if (!holders || holders.length === 0) {
+        console.log('❌ No holders found for userId:', userId);
         return null;
       }
 
@@ -316,6 +323,40 @@ export class SevisPassService {
       });
 
       console.log(`Updated application ${application.applicationId} to status: ${status}`);
+
+      // If approved, create SevisPassHolder record
+      if (status === 'approved' && additionalData?.uin) {
+        console.log('Creating SevisPassHolder record for approved application');
+        
+        const holderRecord = {
+          uin: additionalData.uin,
+          userId,
+          fullName: application.fullName || '',
+          dateOfBirth: application.dateOfBirth || '',
+          documentNumber: application.documentNumber || '',
+          nationality: application.nationality || 'Papua New Guinea',
+          issuedAt: additionalData.issuedAt!,
+          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'active' as const,
+          faceId: application.faceId,
+          documentImageKey: application.documentImageKey,
+          photoImageKey: application.selfieImageKey,
+        };
+
+        console.log('Creating holder record:', JSON.stringify(holderRecord, null, 2));
+
+        try {
+          const result = await publicServerClient.models.SevisPassHolder.create(holderRecord);
+          if (result.data) {
+            console.log('✅ Created SevisPassHolder record with UIN:', result.data.uin);
+          } else if (result.errors?.length) {
+            console.error('❌ SevisPassHolder creation errors:', result.errors);
+          }
+        } catch (holderError) {
+          console.error('❌ Failed to create SevisPassHolder record:', holderError);
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('Error updating application status:', error);

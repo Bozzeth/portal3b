@@ -22,49 +22,43 @@ async function getPhotoUrl(photoKey: string | null): Promise<string | null> {
 }
 
 export async function GET(request: NextRequest) {
+  console.log('🌐 /api/sevispass/user-data GET request received');
+  
   try {
-    // Get user ID from JWT token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({
-        error: 'Authentication required'
-      }, { status: 401 });
-    }
-
-    const token = authHeader.slice(7);
-    let userId: string;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      userId = payload.sub || payload['cognito:username'];
-      if (!userId) throw new Error('No user ID in token');
-    } catch (error) {
-      return NextResponse.json({
-        error: 'Invalid authentication token'
-      }, { status: 401 });
+    // Get user ID from query parameter
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    console.log('🆔 User ID from query:', userId);
+    
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
     
     // Check for approved SevisPass for this specific user only
+    console.log('🔍 Calling getSevisPassHolder for userId:', userId);
     let sevisPassHolder = await SevisPassService.getSevisPassHolder(userId);
-    console.log(`SevisPass holder lookup for user ${userId}:`, sevisPassHolder ? 'Found' : 'Not found');
-    
+    console.log(`📊 SevisPass holder lookup for user ${userId}:`, sevisPassHolder ? 'Found' : 'Not found');
+    if (sevisPassHolder) {
+      console.log('📋 SevisPass holder data:', JSON.stringify(sevisPassHolder, null, 2));
+    }
+
     if (sevisPassHolder) {
       // User has an approved SevisPass
-      const photoUrl = await getPhotoUrl(sevisPassHolder.photoImageKey);
-      
       return NextResponse.json({
         exists: true,
         hasApplication: true,
         applicationStatus: 'approved',
         data: {
           ...sevisPassHolder,
-          photoUrl
+          photoUrl: sevisPassHolder.photo
         }
       });
     }
     
     // Check for application for this specific user only
     let application = await SevisPassService.getApplication(userId);
-    console.log(`Application lookup for user ${userId}:`, application ? `Found (${application.status})` : 'Not found');
+    console.log(`📋 Application lookup for user ${userId}:`, application ? `Found (${application.status})` : 'Not found');
     
     if (!application) {
       // No application found
@@ -118,7 +112,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching user SevisPass data:', error);
+    console.error('❌ Error in user-data API:', error);
     
     return NextResponse.json({
       exists: false,

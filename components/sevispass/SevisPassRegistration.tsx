@@ -17,11 +17,12 @@ interface DocumentInfo {
 }
 
 interface SevisPassRegistrationProps {
+  user?: any;
   onComplete?: (data: { uin: string; status: 'approved' | 'pending' | 'rejected' }) => void;
   onCancel?: () => void;
 }
 
-export function SevisPassRegistration({ onComplete, onCancel }: SevisPassRegistrationProps) {
+export function SevisPassRegistration({ user, onComplete, onCancel }: SevisPassRegistrationProps) {
   const [step, setStep] = useState<RegistrationStep>('document_selection');
   const [selectedDocType, setSelectedDocType] = useState<DocumentType | null>(null);
   const [documentImage, setDocumentImage] = useState<string | null>(null);
@@ -310,6 +311,7 @@ export function SevisPassRegistration({ onComplete, onCancel }: SevisPassRegistr
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          userId: user?.userId,
           documentType: selectedDocType,
           documentImage: documentImage,
           selfieImage: faceImageData,
