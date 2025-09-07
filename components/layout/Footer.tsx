@@ -4,9 +4,9 @@ export function Footer() {
       <div className="container" style={{ padding: '32px 20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '32px' }}>
           <div>
-            <h3 className="font-semibold text-lg" style={{ marginBottom: '16px' }}>SevisPortal Enhanced</h3>
+            <h3 className="font-semibold text-lg" style={{ marginBottom: '16px' }}>Sevis Portal</h3>
             <p className="text-sm" style={{ marginBottom: '16px', color: 'var(--muted-foreground)' }}>
-              Papua New Guinea's comprehensive digital government platform providing citizens with seamless access to essential government services.
+              Papua New Guinea's comprehensive digital government services providing citizens with seamless access to essential government services.
             </p>
             <div className="png-flag-accent" style={{ width: '60px', height: '4px' }}></div>
           </div>

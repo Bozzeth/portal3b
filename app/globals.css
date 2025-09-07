@@ -1,32 +1,44 @@
 :root {
-  /* Minimalist government theme - Light mode */
-  --primary: #1F2937; /* Dark Gray */
-  --secondary: #4B5563; /* Medium Dark Gray */
-  --background: #ffffff; /* White */
-  --foreground: #111827; /* Near Black - Dark text for light background */
+  /* Sevis Portal theme - Professional government with yellow accents */
+  --primary: #1F2937; /* Professional dark gray for government feel */
+  --secondary: #F0CA0C; /* Jonquil Yellow as accent */
+  --background: #ffffff; /* Clean white */
+  --foreground: #1F2937; /* Professional dark gray text */
   --muted-foreground: #6B7280; /* Medium Gray for secondary text */
-  --accent: #F3F4F6; /* Light Gray */
-  --muted: #F9FAFB;
+  --accent: #F8F9FA; /* Very light gray background */
+  --muted: #F3F4F6;
   --border: #E5E7EB;
   --input: #ffffff;
   --ring: #1F2937;
   --destructive: #DC2626;
   --destructive-foreground: #ffffff;
   --card: #ffffff;
-  --card-foreground: #111827;
+  --card-foreground: #1F2937;
+  --success: #10B981;
+  
+  /* Sevis brand colors */
+  --flax: #F3EC98;
+  --jonquil: #F0CA0C;
+  --golden-brown: #865A0C;
+  --eerie-black: #1C1B1C;
+  --eerie-black-2: #1F1D1B;
+  
+  /* Gradients - professional with yellow accents */
+  --brand-gradient: linear-gradient(135deg, #F3EC98, #F0CA0C);
+  --hero-gradient: linear-gradient(135deg, #F8F9FA 0%, #F3EC98 100%);
   
   --max-width: 1200px;
   --border-radius: 6px;
 }
 
 [data-theme="dark"] {
-  /* Minimalist government theme - Dark mode */
-  --primary: #E5E7EB; /* Light Gray */
-  --secondary: #D1D5DB; /* Medium Light Gray */
-  --background: #111827; /* Dark Navy */
-  --foreground: #F9FAFB; /* Off White */
+  /* Sevis Portal theme - Dark mode */
+  --primary: #F0CA0C; /* Jonquil Yellow */
+  --secondary: #F3EC98; /* Flax */
+  --background: #1C1B1C; /* Eerie Black */
+  --foreground: #F3EC98; /* Light Flax */
   --muted-foreground: #D1D5DB; /* Light Gray for secondary text */
-  --accent: #1F2937; /* Dark Gray */
+  --accent: #1F1D1B; /* Eerie Black 2 */
   --muted: #374151;
   --border: #4B5563;
   --input: #1F2937;
