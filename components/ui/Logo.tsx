@@ -1,10 +1,11 @@
 "use client";
 
 interface LogoProps {
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'hero';
   showText?: boolean;
   variant?: 'horizontal' | 'stacked';
   className?: string;
+  solidYellow?: boolean;
 }
 
 export function Logo({ 
@@ -16,13 +17,15 @@ export function Logo({
   const sizeClasses = {
     small: 'h-8 w-8',
     medium: 'h-12 w-12', 
-    large: 'h-16 w-16'
+    large: 'h-16 w-16',
+    hero: 'h-24 w-24'
   };
 
   const textSizeClasses = {
     small: 'text-lg',
     medium: 'text-2xl',
-    large: 'text-3xl'
+    large: 'text-3xl',
+    hero: 'text-5xl'
   };
 
   return (
@@ -60,18 +63,21 @@ export function LogoInline({
   size = 'medium', 
   showText = true, 
   variant = 'horizontal',
-  style = {} 
+  style = {},
+  solidYellow = false 
 }: LogoProps & { style?: React.CSSProperties }) {
   const sizeMap = {
     small: { width: '32px', height: '32px' },
     medium: { width: '48px', height: '48px' },
-    large: { width: '64px', height: '64px' }
+    large: { width: '64px', height: '64px' },
+    hero: { width: '128px', height: '128px' }
   };
 
   const textSizeMap = {
     small: '18px',
     medium: '24px', 
-    large: '30px'
+    large: '30px',
+    hero: '48px'
   };
 
   return (
@@ -96,10 +102,14 @@ export function LogoInline({
           fontWeight: 'bold',
           marginLeft: variant === 'horizontal' ? '12px' : '0',
           marginTop: variant === 'stacked' ? '8px' : '0',
-          background: 'var(--brand-gradient)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
+          ...(solidYellow ? {
+            color: '#F0CA0C'
+          } : {
+            background: 'var(--brand-gradient)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          })
         }}>
           Sevis Portal
         </span>

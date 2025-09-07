@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getCurrentUser, signOut } from 'aws-amplify/auth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { LogoInline } from '@/components/ui/Logo';
 
 function DashboardContent() {
   const router = useRouter();
@@ -55,19 +56,17 @@ function DashboardContent() {
             flexWrap: 'wrap',
             gap: '16px'
           }}>
-            <div>
-              <div style={{ 
-                background: 'linear-gradient(90deg, #DC2626 0%, #FCD34D 100%)',
-                height: '4px',
-                width: '60px',
-                marginBottom: '12px',
-                borderRadius: '2px'
-              }}></div>
-              <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 4px 0' }}>
-                SevisPortal Dashboard
-              </h1>
-              <p style={{ color: 'var(--muted-foreground)', margin: '0' }}>
-                Papua New Guinea Digital Government Platform
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <div style={{ marginBottom: '8px' }}>
+                <LogoInline size="medium" showText={true} variant="horizontal" />
+              </div>
+              <p style={{ 
+                color: 'var(--muted-foreground)', 
+                margin: '0',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                Papua New Guinea Digital Government Services
               </p>
             </div>
             
@@ -113,11 +112,8 @@ function DashboardContent() {
         <div className="container">
           <div style={{ marginBottom: '32px' }}>
             <h2 style={{ fontSize: '28px', fontWeight: '600', marginBottom: '8px' }}>
-              Welcome to SevisPortal!
+              Welcome to Sevis Portal!
             </h2>
-            <p style={{ color: 'var(--muted-foreground)', fontSize: '16px' }}>
-              You have successfully authenticated. This is a protected dashboard page.
-            </p>
           </div>
 
           <div style={{ 
@@ -135,10 +131,10 @@ function DashboardContent() {
                 available: true
               },
               {
-                title: 'SevisPass Application',
-                description: 'Apply for your PNG digital identity with automated verification',
-                link: '/sevispass/apply',
-                available: true
+                title: 'Statement of School Results',
+                description: 'Access and verify academic records and certificates',
+                link: '/education/results',
+                available: false
               },
               {
                 title: 'CityPass Application', 

@@ -81,66 +81,49 @@ export default function LandingPage() {
             }}
           ></div>
 
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-              @media (max-width: 768px) {
-                .hero-container {
-                  grid-template-columns: 1fr !important;
-                  gap: 40px !important;
-                }
-                .hero-content {
-                  text-align: center !important;
-                }
-                .hero-buttons {
-                  justify-content: center !important;
-                }
-              }
-            `,
-            }}
-          />
           <div
             className="hero-container"
             style={{
-              padding: "40px 20px",
-              maxWidth: "1200px",
+              padding: "60px 20px",
+              maxWidth: "800px",
               margin: "0 auto",
-              display: "grid",
-              gridTemplateColumns: "minmax(300px, 1fr) minmax(300px, 500px)",
-              gap: "60px",
+              display: "flex",
+              flexDirection: "column",
               alignItems: "center",
+              textAlign: "center",
             }}
           >
             {/* Left Column - Content */}
-            <div className="hero-content">
+            <div className="hero-content" style={{ textAlign: 'center', width: '100%' }}>
               <div style={{ marginBottom: "60px" }}>
-                <div style={{ marginBottom: '24px' }}>
-                  <LogoInline size="large" showText={true} variant="horizontal" />
+                <div style={{ marginBottom: '40px' }}>
+                  <LogoInline size="hero" showText={true} variant="stacked" solidYellow={true} />
                 </div>
                 <p
                   style={{
-                    fontSize: "clamp(16px, 2vw, 20px)",
-                    marginBottom: "12px",
-                    fontWeight: "400",
-                    opacity: 0.9,
+                    fontSize: "clamp(20px, 2.5vw, 28px)",
+                    marginBottom: "16px",
+                    fontWeight: "500",
+                    opacity: 0.95,
                     color: "var(--foreground)",
-                    textAlign: "left",
+                    textAlign: "center",
+                    letterSpacing: "0.5px",
                   }}
                 >
-                  Papua New Guinea Digital Government Platform
+                  Papua New Guinea Digital Government Services
                 </p>
                 <p
                   style={{
-                    fontSize: "clamp(14px, 1.5vw, 16px)",
-                    opacity: 0.8,
-                    maxWidth: "500px",
-                    lineHeight: 1.5,
+                    fontSize: "clamp(16px, 2vw, 20px)",
+                    opacity: 0.85,
+                    maxWidth: "600px",
+                    lineHeight: 1.6,
                     color: "var(--muted-foreground)",
-                    textAlign: "left",
+                    textAlign: "center",
+                    margin: "0 auto",
                   }}
                 >
-                  Secure access to government services and digital identity
-                  verification
+                  Official digital identity verification and secure access to government services
                 </p>
               </div>
 
@@ -216,27 +199,6 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Right Column - Illustration */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "20px",
-              }}
-            >
-              {/* Happy feeling illustration */}
-              <img
-                src="/undraw_happy-feeling_itcr.svg"
-                alt="Happy feeling illustration showing a person with positive emotions"
-                style={{
-                  width: "100%",
-                  maxWidth: "450px",
-                  height: "auto",
-                  opacity: 0.9,
-                }}
-              />
-            </div>
           </div>
         </section>
 
