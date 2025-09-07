@@ -244,7 +244,7 @@ export class SevisPassService {
         console.log('✅ cookiesClient result:', holders?.length || 0, 'holders found');
       } catch (authError) {
         console.log('❌ Cookies client failed for getSevisPassHolder, using public API key server client');
-        console.log('Auth error details:', authError.message);
+        console.log('Auth error details:', authError instanceof Error ? authError.message : String(authError));
         const result = await publicServerClient.models.SevisPassHolder.list({
           filter: { userId: { eq: userId }, status: { eq: 'active' } }
         });
