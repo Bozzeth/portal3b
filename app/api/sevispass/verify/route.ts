@@ -21,26 +21,32 @@ export async function POST(req: NextRequest) {
         
         let targetUin = uin;
         
-        // If QR data is provided, try to parse it
-        if (qrData && !targetUin) {
-          try {
-            const parsed = JSON.parse(qrData);
-            targetUin = parsed.uin;
-          } catch (error) {
-            console.error('Failed to parse QR data:', error);
-            return {
-              valid: false,
-              error: 'Invalid QR code format'
-            };
-          }
-        }
-
-        if (!targetUin) {
-          return {
+    // If QR data is provided, try to parse it
+    if (qrData && !targetUin) {
+      try {
+        const parsed = JSON.parse(qrData);
+        targetUin = parsed.uin;
+      } catch (error) {
+        console.error('Failed to parse QR data:', error);
+        return NextResponse.json({
+          success: false,
+          verification: {
             valid: false,
-            error: 'No UIN found in provided data'
-          };
+            error: 'Invalid QR code format'
+          }
+        }, { status: 400 });
+      }
+    }
+
+    if (!targetUin) {
+      return NextResponse.json({
+        success: false,
+        verification: {
+          valid: false,
+          error: 'No UIN found in provided data'
         }
+      }, { status: 400 });
+    }
 
     console.log('Verifying UIN:', targetUin);
 
