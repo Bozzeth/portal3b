@@ -16,20 +16,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: async (contextSpec) => {
-        // Require authentication for verification
-        try {
-          const currentUser = await getCurrentUser(contextSpec);
-          console.log('Authenticated user accessing verify:', currentUser.userId);
-        } catch (authError) {
-          console.log('User not authenticated for verification');
-          return {
-            valid: false,
-            error: 'Authentication required to verify SevisPass identities'
-          };
-        }
+    // Verification can be done without authentication using public client
+    console.log('Processing UIN verification request');
         
         let targetUin = uin;
         
@@ -54,98 +42,96 @@ export async function POST(req: NextRequest) {
           };
         }
 
-        console.log('Verifying UIN:', targetUin);
+    console.log('Verifying UIN:', targetUin);
 
-        // Look up the SevisPass holder by UIN using server context
-        let holder;
-        try {
-          const { generateServerClientUsingCookies } = await import('@aws-amplify/adapter-nextjs/data');
-          const { Schema } = await import('@/amplify/data/resource');
+    // Look up the SevisPass holder by UIN using public client
+    let holder;
+    try {
+      const { publicServerClient } = await import('@/lib/utils/amplifyServerUtils');
+      holder = await publicServerClient.models.SevisPassHolder.get({ uin: targetUin });
           
-          const client = generateServerClientUsingCookies<Schema>({
-            config: (await import('@/amplify_outputs.json')).default,
-            cookies,
-          });
-          
-          holder = await client.models.SevisPassHolder.get({ uin: targetUin });
-          
-          if (!holder.data) {
-            console.log('No SevisPass holder found for UIN:', targetUin);
-            return {
-              valid: false,
-              error: 'SevisPass not found or invalid UIN'
-            };
+      if (!holder.data) {
+        console.log('No SevisPass holder found for UIN:', targetUin);
+        return NextResponse.json({
+          success: false,
+          verification: {
+            valid: false,
+            error: 'SevisPass not found or invalid UIN'
           }
+        });
+      }
 
-          // Check if the SevisPass is active
-          const isActive = holder.data.status === 'active';
-          
-          if (!isActive) {
-            console.log('SevisPass found but not active:', holder.data.status);
-            return {
-              valid: false,
-              error: `SevisPass is ${holder.data.status}`,
-              data: {
-                uin: holder.data.uin,
-                name: holder.data.fullName,
-                status: holder.data.status,
-                issued: holder.data.issuedAt,
-                type: 'sevispass',
-                version: '1.0'
-              }
-            };
-          }
-
-          console.log('Valid SevisPass found:', holder.data.uin);
-          
-          // Get photo URL if available
-          let photoUrl = null;
-          if (holder.data.photoImageKey) {
-            try {
-              const urlResult = await getUrl({
-                path: holder.data.photoImageKey,
-                options: {
-                  expiresIn: 3600 // 1 hour
-                }
-              });
-              photoUrl = urlResult.url.toString();
-              console.log('Generated photo URL for SevisPass');
-            } catch (photoError) {
-              console.error('Error generating photo URL:', photoError);
-            }
-          }
-          
-          return {
-            valid: true,
+      // Check if the SevisPass is active
+      const isActive = holder.data.status === 'active';
+      
+      if (!isActive) {
+        console.log('SevisPass found but not active:', holder.data.status);
+        return NextResponse.json({
+          success: false,
+          verification: {
+            valid: false,
+            error: `SevisPass is ${holder.data.status}`,
             data: {
               uin: holder.data.uin,
               name: holder.data.fullName,
-              dateOfBirth: holder.data.dateOfBirth,
-              documentNumber: holder.data.documentNumber,
-              nationality: holder.data.nationality,
               status: holder.data.status,
               issued: holder.data.issuedAt,
-              expires: holder.data.expiryDate,
-              photoUrl,
               type: 'sevispass',
               version: '1.0'
             }
-          };
-          
-        } catch (error) {
-          console.error('Database error during verification:', error);
-          return {
-            valid: false,
-            error: 'Verification service temporarily unavailable'
-          };
+          }
+        });
+      }
+
+      console.log('Valid SevisPass found:', holder.data.uin);
+      
+      // Get photo URL if available
+      let photoUrl = null;
+      if (holder.data.photoImageKey) {
+        try {
+          const urlResult = await getUrl({
+            path: holder.data.photoImageKey,
+            options: {
+              expiresIn: 3600 // 1 hour
+            }
+          });
+          photoUrl = urlResult.url.toString();
+          console.log('Generated photo URL for SevisPass');
+        } catch (photoError) {
+          console.error('Error generating photo URL:', photoError);
         }
       }
-    });
-
-    return NextResponse.json({
-      success: true,
-      verification: result
-    });
+      
+      return NextResponse.json({
+        success: true,
+        verification: {
+          valid: true,
+          data: {
+            uin: holder.data.uin,
+            name: holder.data.fullName,
+            dateOfBirth: holder.data.dateOfBirth,
+            documentNumber: holder.data.documentNumber,
+            nationality: holder.data.nationality,
+            status: holder.data.status,
+            issued: holder.data.issuedAt,
+            expires: holder.data.expiryDate,
+            photoUrl,
+            type: 'sevispass',
+            version: '1.0'
+          }
+        }
+      });
+      
+    } catch (error) {
+      console.error('Database error during verification:', error);
+      return NextResponse.json({
+        success: false,
+        verification: {
+          valid: false,
+          error: 'Verification service temporarily unavailable'
+        }
+      }, { status: 500 });
+    }
 
   } catch (error) {
     console.error('SevisPass verification error:', error);

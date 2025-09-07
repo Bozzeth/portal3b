@@ -819,19 +819,27 @@ export async function analyzeIdentityDocument(
       }
     }
     
+    // First try to extract document number from explicit "DOCUMENT No." text
+    if (!extractedData.documentNumber) {
+      const docNoPattern = /DOCUMENT\s+No\.\s*([A-Z]{1,2}[0-9]{5,8})/i;
+      const docNoMatch = allText.match(docNoPattern);
+      if (docNoMatch) {
+        extractedData.documentNumber = docNoMatch[1];
+        console.log('✅ Document number found from "DOCUMENT No." text:', extractedData.documentNumber);
+      }
+    }
+
     // Additional MRZ line parsing for document number and dates
     if (mrzFound || allText.includes('PNG')) {
       console.log('🔍 Looking for MRZ second line (document number, dates)...');
       
       // Look for the second MRZ line with document number
       // Format: PASSPORT_NUMBER<PNG<YYMMDD<M<YYMMDD<PERSONAL_NUMBER<CHECK
+      // PNG passport format: OP17999<<2PNG8110099M2612236<<
       const mrzLine2Patterns = [
-        /^([A-Z]{1,2}[0-9]{6,8})[<\s]*PNG[<\s]*([0-9]{6})[<\s]*[MF][<\s]*([0-9]{6})/im, // Standard passport MRZ format
-        /([A-Z]{1,2}[0-9]{6,8})[<\s]*PNG/im, // Document number before PNG (more flexible)
-        /^([A-Z0-9]{7,9})[<\s]*PNG[<\s]*([0-9]{6})/im, // Alternative format
-        // More flexible - find document number at start of line with PNG
-        /^([A-Z]{1,2}[0-9]{6,8})/m, // Just document number at line start
-        /([A-Z]{1,2}[0-9]{6,8})(?=.*PNG)/im // Document number anywhere in line with PNG
+        /^(O[A-Z][0-9]{5,7})[<\s]*[0-9]*PNG/im, // PNG format: OP17999
+        /^([A-Z]{2}[0-9]{5,7})[<\s]*[0-9]*PNG/im, // Standard format: AB123456
+        /^([A-Z0-9]{6,9})[<\s]*PNG/im, // More flexible format
       ];
       
       for (const pattern of mrzLine2Patterns) {
@@ -842,7 +850,9 @@ export async function analyzeIdentityDocument(
           // Extract document number (first capture group)
           if (match[1] && !extractedData.documentNumber) {
             const docNum = match[1].replace(/[<]/g, ''); // Remove padding characters
-            if (/^[A-Z]{1,2}[0-9]{6,8}$/.test(docNum)) {
+            
+            // Validate document number format
+            if (/^[A-Z]{1,2}[0-9]{5,8}$/.test(docNum)) {
               extractedData.documentNumber = docNum;
               console.log('✅ Document number from MRZ:', extractedData.documentNumber);
             }
