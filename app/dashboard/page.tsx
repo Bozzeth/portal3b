@@ -129,45 +129,59 @@ function DashboardContent() {
             {/* Services Cards */}
             {[
               {
+                title: 'My SevisPass',
+                description: 'View and manage your PNG digital identity card',
+                link: '/sevispass/view',
+                available: true
+              },
+              {
                 title: 'SevisPass Application',
                 description: 'Apply for your PNG digital identity with automated verification',
-                link: '/sevispass/apply'
+                link: '/sevispass/apply',
+                available: true
               },
               {
                 title: 'CityPass Application', 
                 description: 'Port Moresby resident credentials and city services',
-                link: '/citypass/apply'
+                link: '/citypass/apply',
+                available: false
               },
               {
                 title: 'Medical Record Number',
                 description: 'Health service identifier for PNG healthcare system', 
-                link: '/health/mrn/apply'
+                link: '/health/mrn/apply',
+                available: false
               },
               {
                 title: 'SIM Card Registration',
                 description: 'eKYC and registration for PNG telecom providers',
-                link: '/nicta/sim/register'
+                link: '/nicta/sim/register',
+                available: false
               },
               {
                 title: 'Identity Verification',
                 description: 'QR code and UIN/VID verification service',
-                link: '/verify'
+                link: '/verify',
+                available: true
               },
               {
                 title: 'Vouching System',
                 description: 'Personal vouching for residents',
-                link: '/resident/vouch'
+                link: '/resident/vouch',
+                available: false
               }
             ].map((service, index) => (
               <div
                 key={index}
                 style={{
                   background: 'var(--card)',
-                  border: '1px solid var(--border)',
+                  border: service.available ? '2px solid var(--primary)' : '1px solid var(--border)',
                   borderRadius: '12px',
                   padding: '24px',
                   transition: 'all 0.2s ease',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  position: 'relative',
+                  opacity: service.available ? 1 : 0.7
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
@@ -178,16 +192,45 @@ function DashboardContent() {
                   e.currentTarget.style.boxShadow = 'none';
                 }}
                 onClick={() => {
-                  // For now, just alert since these pages don't exist yet
-                  alert(`Navigating to ${service.title} - Page will be implemented soon!`);
+                  if (service.available) {
+                    router.push(service.link);
+                  } else {
+                    alert(`${service.title} - Page will be implemented soon!`);
+                  }
                 }}
               >
+                {service.available && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: 'var(--primary)',
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: '600',
+                    padding: '4px 8px',
+                    borderRadius: '12px',
+                    textTransform: 'uppercase'
+                  }}>
+                    Available
+                  </div>
+                )}
                 <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
                   {service.title}
                 </h3>
                 <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', lineHeight: 1.5 }}>
                   {service.description}
                 </p>
+                {service.available && (
+                  <div style={{
+                    marginTop: '12px',
+                    color: 'var(--primary)',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }}>
+                    🚀 Ready to use
+                  </div>
+                )}
               </div>
             ))}
           </div>
