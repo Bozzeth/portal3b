@@ -134,6 +134,67 @@ async function getRekognitionStreamingClient(contextSpec?: any): Promise<Rekogni
 // Collection name for storing SevisPass face vectors
 const SEVISPASS_COLLECTION = 'sevispass-faces';
 
+/**
+ * Helper function to reconstruct fragmented MRZ lines
+ */
+function reconstructMRZLines(mrzCandidates: Array<{text: string; confidence: number}>): string[] {
+  const reconstructed: string[] = [];
+  
+  // Group candidates by common MRZ patterns
+  const line1Candidates = mrzCandidates.filter(c => 
+    /P[<\s]*PNG/i.test(c.text) || c.text.includes('<<')
+  );
+  
+  const line2Candidates = mrzCandidates.filter(c => 
+    /[A-Z0-9]{8,}/.test(c.text) && c.text.includes('PNG') && !c.text.includes('P<PNG')
+  );
+  
+  // Attempt to reconstruct MRZ line 1 (name line)
+  if (line1Candidates.length > 0) {
+    // Find the best line 1 candidate or combine fragments
+    let bestLine1 = line1Candidates[0].text;
+    
+    // If we have multiple candidates, try to combine them intelligently
+    if (line1Candidates.length > 1) {
+      const fragments = line1Candidates.map(c => c.text).join(' ');
+      // Clean up and standardize
+      const cleaned = fragments
+        .replace(/\s+/g, '')  // Remove spaces
+        .replace(/[^A-Z<]/g, '') // Keep only letters and <
+        .toUpperCase();
+      
+      if (cleaned.length > bestLine1.replace(/[^A-Z<]/g, '').length) {
+        bestLine1 = cleaned;
+      }
+    }
+    
+    // Standardize the format
+    if (bestLine1 && bestLine1.length > 10) {
+      bestLine1 = bestLine1.replace(/\s+/g, '').toUpperCase();
+      // Ensure proper P<PNG format
+      if (!bestLine1.startsWith('P<PNG')) {
+        if (bestLine1.includes('PNG')) {
+          bestLine1 = bestLine1.replace(/.*PNG/, 'P<PNG');
+        }
+      }
+      reconstructed.push(bestLine1);
+    }
+  }
+  
+  // Attempt to reconstruct MRZ line 2 (document info)
+  if (line2Candidates.length > 0) {
+    let bestLine2 = line2Candidates[0].text;
+    
+    // Clean up line 2
+    if (bestLine2 && bestLine2.length > 15) {
+      bestLine2 = bestLine2.replace(/\s+/g, '').toUpperCase();
+      reconstructed.push(bestLine2);
+    }
+  }
+  
+  return reconstructed.filter(line => line.length > 10);
+}
+
 // Confidence thresholds - Lowered for maximum accessibility
 export const CONFIDENCE_THRESHOLDS = {
   AUTO_APPROVE: 50,  // Lowered from 70% to 50% - instant approval
@@ -476,6 +537,7 @@ export async function extractTextFromDocument(
  */
 export async function analyzeIdentityDocument(
   imageBytes: Uint8Array,
+  documentType?: string,
   contextSpec?: any
 ): Promise<{
   extractedData: {
@@ -493,25 +555,101 @@ export async function analyzeIdentityDocument(
   try {
     const rekognitionClient = await getRekognitionClient(contextSpec);
     
+    // Enhanced text detection settings optimized for passport MRZ zone
+    console.log('🔍 Rekognition: Starting enhanced text detection optimized for MRZ zone...');
     const command = new DetectTextCommand({
       Image: { Bytes: imageBytes },
       Filters: {
         WordFilter: {
-          MinConfidence: 60
-        }
+          MinConfidence: 30, // Even lower confidence for MRZ text which can be small/faint
+          MinBoundingBoxHeight: 0.003, // Very small minimum box to capture MRZ text
+          MinBoundingBoxWidth: 0.003
+        },
+        RegionsOfInterest: [
+          {
+            // Focus on bottom 30% of image where MRZ typically appears
+            BoundingBox: {
+              Width: 1.0,  // Full width
+              Height: 0.3, // Bottom 30% of image
+              Left: 0.0,
+              Top: 0.7     // Start from 70% down the image
+            }
+          },
+          {
+            // Also scan the full image as backup
+            BoundingBox: {
+              Width: 1.0,
+              Height: 1.0,
+              Left: 0.0,
+              Top: 0.0
+            }
+          }
+        ]
       }
     });
 
     const response = await rekognitionClient.send(command);
     const textDetections = response.TextDetections || [];
 
-    // Extract all detected text
-    const allText = textDetections
+    // Extract all detected text with better filtering
+    const lineDetections = textDetections
       .filter(detection => detection.Type === 'LINE' && detection.DetectedText)
-      .map(detection => detection.DetectedText!)
-      .join('\n');
+      .map(detection => ({
+        text: detection.DetectedText!,
+        confidence: detection.Confidence || 0
+      }))
+      .sort((a, b) => b.confidence - a.confidence); // Sort by confidence
 
-    console.log('Rekognition detected text:', allText);
+    const wordDetections = textDetections
+      .filter(detection => detection.Type === 'WORD' && detection.DetectedText)
+      .map(detection => ({
+        text: detection.DetectedText!,
+        confidence: detection.Confidence || 0
+      }));
+
+    let allText = lineDetections.map(d => d.text).join('\n');
+    const allWords = wordDetections.map(d => d.text).join(' ');
+
+    console.log('📄 Rekognition detected lines:', lineDetections.length);
+    console.log('📄 Rekognition detected words:', wordDetections.length);
+    console.log('📝 Full text extracted:\n', allText);
+    console.log('🔤 All words:', allWords);
+
+    // Pre-process text to find potential MRZ lines
+    console.log('🔍 Pre-processing text to identify MRZ patterns...');
+    const mrzCandidateLines = lineDetections
+      .filter(detection => {
+        const text = detection.text;
+        // Look for lines that contain typical MRZ characteristics
+        return (
+          text.includes('PNG') || 
+          text.includes('P<PNG') ||
+          /P[<\s]*PNG/i.test(text) ||
+          text.includes('<<') || 
+          /[A-Z]{2,}[<]{2,}[A-Z]{2,}/i.test(text) || // Names with << separators
+          /^[A-Z0-9<]{20,}$/i.test(text.replace(/\s/g, '')) // Long alphanumeric strings typical of MRZ
+        );
+      })
+      .sort((a, b) => b.confidence - a.confidence);
+
+    if (mrzCandidateLines.length > 0) {
+      console.log('🎯 Found MRZ candidate lines:', mrzCandidateLines.map(l => l.text));
+      
+      // Create a focused MRZ text for parsing
+      const mrzFocusedText = mrzCandidateLines.map(l => l.text).join('\n');
+      console.log('🎯 MRZ-focused text for parsing:\n', mrzFocusedText);
+      
+      // Use this focused text for MRZ parsing in addition to full text
+      allText = allText + '\n' + mrzFocusedText;
+      
+      // Try to reconstruct fragmented MRZ lines
+      console.log('🔧 Attempting MRZ line reconstruction...');
+      const reconstructedMRZ = reconstructMRZLines(mrzCandidateLines);
+      if (reconstructedMRZ.length > 0) {
+        console.log('🔧 Reconstructed MRZ lines:', reconstructedMRZ);
+        allText = allText + '\n' + reconstructedMRZ.join('\n');
+      }
+    }
 
     if (!allText) {
       return {
@@ -521,37 +659,252 @@ export async function analyzeIdentityDocument(
       };
     }
 
-    // Initialize extracted data
-    const extractedData: any = {};
+    // Enhanced parsing for different PNG document types
+    console.log(`🔍 Starting document analysis for type: ${documentType || 'unknown'}...`);
+    
+    let mrzPatterns: RegExp[] = [];
+    const extractedData: any = {
+      nationality: 'Papua New Guinea' // Default for PNG documents
+    };
+    
+    // Define patterns based on document type
+    if (documentType === 'png_passport' || documentType?.includes('passport') || !documentType) {
+      console.log('🔍 Using PNG Passport MRZ patterns...');
+      // PNG Passport MRZ format: P<PNGLASTNAME<<FIRSTNAME<MIDDLENAME<<<<<
+      //                         YYMMDDXNNNNNNNN9PNG9999999M2209304<<<<<<<<<<1
+      mrzPatterns = [
+        // Exact PNG passport MRZ format: P<PNGBIRIBUDO<<JESSE<TUKAU
+        /P<PNG([A-Z]+)<<([A-Z]+)<([A-Z]+)/i,
+        // Standard format with flexible separators: P<PNGLASTNAME<<FIRSTNAME<MIDDLENAME<<<<<
+        /P<PNG([A-Z][A-Z]*?)(<+)([A-Z][A-Z]*?)(<*)([A-Z][A-Z]*?)?(<*)/i,
+        // Alternative format with spaces: P PNG LASTNAME << FIRSTNAME
+        /P[<\s]PNG[<\s]+([A-Z]+)[<\s]+([A-Z]+)[<\s]*([A-Z]*)/i,
+        // Relaxed format allowing for OCR errors: P PNG or PPNG
+        /(P[<\s]*PNG|PPNG)[<\s]+([A-Z][A-Z]*?)[<\s]*([A-Z][A-Z]*?)[<\s]*([A-Z][A-Z]*?)?/i
+      ];
+      extractedData.documentType = 'Passport';
+      
+    } else if (documentType === 'nid') {
+      console.log('🔍 Using PNG National ID patterns...');
+      // PNG National ID patterns - typically printed names
+      mrzPatterns = [
+        // Look for structured name fields on NID
+        /(?:NAME|FULL\s*NAME|GIVEN\s*NAME)[:\s]+([A-Z\s]+)/i,
+        // Alternative: SURNAME, GIVEN NAME format
+        /(?:SURNAME)[:\s]+([A-Z]+)[,\s]+(?:GIVEN\s*NAME)[:\s]+([A-Z\s]+)/i,
+        // Simple pattern: LASTNAME, FIRSTNAME format
+        /([A-Z]{2,}),\s*([A-Z]{2,}(?:\s+[A-Z]+)*)/i
+      ];
+      extractedData.documentType = 'National ID';
+      
+    } else if (documentType === 'drivers_license') {
+      console.log('🔍 Using PNG Driver\'s License patterns...');
+      // PNG Driver's License patterns
+      mrzPatterns = [
+        // Driver's License name format
+        /(?:NAME|FULL\s*NAME)[:\s]+([A-Z\s]+)/i,
+        // License number with name nearby
+        /(?:LIC(?:ENSE)?\s*(?:NO|NUMBER)?)[:\s]+([A-Z0-9]+)[\s\S]*?([A-Z]{2,}\s+[A-Z\s]*)/i,
+        // Standard name format
+        /([A-Z]{2,})\s+([A-Z]{2,}(?:\s+[A-Z]+)*)/i
+      ];
+      extractedData.documentType = 'Driver\'s License';
+      
+    } else {
+      console.log('🔍 Using generic PNG document patterns...');
+      // Generic patterns for unknown document types
+      mrzPatterns = [
+        // Try passport patterns first
+        /P<PNG([A-Z]+)<<([A-Z]+)<([A-Z]+)/i,
+        // Then generic name patterns
+        /(?:NAME|FULL\s*NAME)[:\s]+([A-Z\s]+)/i,
+        /([A-Z]{2,})\s+([A-Z]{2,}(?:\s+[A-Z]+)*)/i
+      ];
+      extractedData.documentType = 'Identity Document';
+    }
 
-    // Parse PNG passport MRZ format (Machine Readable Zone)
-    // Format: P<PNGLASTNAME<<FIRSTNAME<MIDDLENAME<<<<<
-    const mrzMatch = allText.match(/P<PNG([A-Z][^<\s]*?)(<+)([A-Z][^<\s]*?)(<*)([A-Z][^<\s]*?)?(<*)/i);
-    if (mrzMatch) {
-      const lastName = mrzMatch[1].trim();
-      const firstName = mrzMatch[3].trim();
-      const middleName = mrzMatch[5] ? mrzMatch[5].trim() : '';
+    let mrzFound = false;
+    
+    for (let i = 0; i < mrzPatterns.length && !mrzFound; i++) {
+      const pattern = mrzPatterns[i];
+      console.log(`Trying MRZ pattern ${i + 1}:`, pattern.source);
+      
+      const mrzMatch = allText.match(pattern);
+      if (mrzMatch) {
+        console.log('MRZ match found:', mrzMatch);
+        
+        let lastName, firstName, middleName, fullName;
+        
+        if (documentType === 'png_passport' || documentType?.includes('passport') || !documentType) {
+          // Passport parsing logic
+          if (i === 0) {
+            // Exact PNG MRZ format: P<PNGBIRIBUDO<<JESSE<TUKAU
+            lastName = mrzMatch[1]?.replace(/<+/g, '').trim();
+            firstName = mrzMatch[2]?.replace(/<+/g, '').trim();
+            middleName = mrzMatch[3]?.replace(/<+/g, '').trim();
+          } else if (i === 1) {
+            // Standard format with flexible separators
+            lastName = mrzMatch[1]?.replace(/<+/g, '').trim();
+            firstName = mrzMatch[3]?.replace(/<+/g, '').trim();
+            middleName = mrzMatch[5]?.replace(/<+/g, '').trim();
+          } else {
+            // Alternative formats
+            lastName = mrzMatch[1]?.replace(/[<\s]+/g, '').trim();
+            firstName = mrzMatch[2]?.replace(/[<\s]+/g, '').trim();
+            middleName = mrzMatch[3]?.replace(/[<\s]+/g, '').trim();
+          }
+          
+        } else if (documentType === 'nid' || documentType === 'drivers_license') {
+          // NID and Driver's License parsing logic
+          if (i === 0) {
+            // Full name field: "NAME: JOHN SMITH DOE"
+            fullName = mrzMatch[1]?.trim();
+          } else if (i === 1) {
+            // SURNAME, GIVEN NAME format
+            lastName = mrzMatch[1]?.trim();
+            fullName = mrzMatch[2]?.trim(); // This contains first + middle names
+          } else {
+            // Simple LASTNAME, FIRSTNAME format
+            lastName = mrzMatch[1]?.trim();
+            fullName = mrzMatch[2]?.trim();
+          }
+          
+          // Parse full name into parts if we have it
+          if (fullName && !firstName) {
+            const nameParts = fullName.split(/\s+/);
+            if (nameParts.length >= 2) {
+              firstName = nameParts[0];
+              middleName = nameParts.slice(1).join(' ');
+            } else {
+              firstName = fullName;
+            }
+          }
+        }
 
-      if (lastName && firstName) {
-        extractedData.lastName = lastName;
-        extractedData.firstName = firstName;
-        if (middleName) extractedData.middleName = middleName;
+        // Validate extracted names
+        if (lastName && firstName && lastName.length > 1 && firstName.length > 1) {
+          // Clean up any remaining OCR artifacts
+          lastName = lastName.replace(/[^A-Z]/g, '');
+          firstName = firstName.replace(/[^A-Z]/g, '');
+          if (middleName) {
+            middleName = middleName.replace(/[^A-Z]/g, '');
+          }
+          
+          // Additional validation - names should be reasonable length
+          if (lastName.length >= 2 && firstName.length >= 2 && 
+              lastName.length <= 20 && firstName.length <= 20) {
+            
+            extractedData.lastName = lastName;
+            extractedData.firstName = firstName;
+            if (middleName && middleName.length >= 2) {
+              extractedData.middleName = middleName;
+              extractedData.fullName = `${firstName} ${middleName} ${lastName}`;
+            } else {
+              extractedData.fullName = `${firstName} ${lastName}`;
+            }
 
-        extractedData.fullName = middleName
-          ? `${firstName} ${middleName} ${lastName}`
-          : `${firstName} ${lastName}`;
-
-        extractedData.nationality = 'Papua New Guinea';
-        extractedData.documentType = 'Passport';
-
-        console.log('MRZ parsing successful:', { lastName, firstName, middleName, fullName: extractedData.fullName });
+            extractedData.nationality = 'Papua New Guinea';
+            extractedData.documentType = 'Passport';
+            
+            console.log('✅ MRZ parsing successful with pattern', i + 1, ':', {
+              lastName,
+              firstName,
+              middleName,
+              fullName: extractedData.fullName
+            });
+            
+            mrzFound = true;
+          }
+        }
+      }
+    }
+    
+    // Additional MRZ line parsing for document number and dates
+    if (mrzFound || allText.includes('PNG')) {
+      console.log('🔍 Looking for MRZ second line (document number, dates)...');
+      
+      // Look for the second MRZ line with document number
+      // Format: YYMMDDXNNNNNNNN9PNG9999999M2209304<<<<<<<<<<1
+      const mrzLine2Patterns = [
+        /([A-Z0-9]{8,9})[0-9]PNG[0-9]{7}[MF]([0-9]{6})[0-9]/i, // Standard format
+        /([A-Z]{1,2}[0-9]{6,8})[^A-Z]*PNG/i, // Document number before PNG
+        /PNG[^0-9]*([0-9]{6})/i // Date after PNG
+      ];
+      
+      for (const pattern of mrzLine2Patterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          if (pattern.source.includes('PNG') && match[1] && match[1].length >= 6) {
+            if (!extractedData.documentNumber && /^[A-Z]{1,2}[0-9]{6,8}$/.test(match[1])) {
+              extractedData.documentNumber = match[1];
+              console.log('✅ Document number from MRZ:', extractedData.documentNumber);
+            }
+            
+            // Extract date info from MRZ if available
+            if (match[2] && match[2].length === 6) {
+              const dateStr = match[2];
+              const year = '20' + dateStr.substring(0, 2);
+              const month = dateStr.substring(2, 4);
+              const day = dateStr.substring(4, 6);
+              
+              if (month >= '01' && month <= '12' && day >= '01' && day <= '31') {
+                console.log('📅 Found expiry date in MRZ:', `${year}-${month}-${day}`);
+                // Don't overwrite DOB, but could extract expiry date for validation
+              }
+            }
+          }
+          
+          // Try to extract DOB from MRZ second line (different position)
+          // Format: 0P17999<<2PNG8110099M2612236<<
+          // The 811009 part is YYMMDD for birth date (81-10-09 = 1981-10-09)
+          const dobMatch = allText.match(/([0-9]{6})[0-9M][0-9]{6}/);
+          if (dobMatch && !extractedData.dateOfBirth) {
+            const dobStr = dobMatch[1];
+            // Parse YYMMDD format
+            let year = parseInt(dobStr.substring(0, 2));
+            const month = dobStr.substring(2, 4);
+            const day = dobStr.substring(4, 6);
+            
+            // Convert YY to full year (assume 1900s for years > 50, 2000s for <= 50)
+            year = year > 50 ? 1900 + year : 2000 + year;
+            
+            if (month >= '01' && month <= '12' && day >= '01' && day <= '31') {
+              extractedData.dateOfBirth = `${year}-${month}-${day}`;
+              console.log('📅 Extracted DOB from MRZ:', extractedData.dateOfBirth);
+            }
+          }
+        }
       }
     }
 
     // If MRZ parsing failed, try other name extraction methods
     if (!extractedData.fullName) {
-      // Look for common name patterns in PNG documents
-      const namePatterns = [
+      console.log('🔍 MRZ parsing failed, trying alternative name extraction methods...');
+      
+      // Strategy 1: Look for "Name:" or "Given Names:" patterns
+      const nameFieldPatterns = [
+        /Name[:\s]+([A-Z][A-Z\s]+)/i,
+        /Given\s+Names?[:\s]+([A-Z][A-Z\s]+)/i,
+        /Surname[:\s]+([A-Z][A-Z\s]+)/i,
+        /Family\s+Name[:\s]+([A-Z][A-Z\s]+)/i
+      ];
+      
+      for (const pattern of nameFieldPatterns) {
+        const match = allText.match(pattern);
+        if (match) {
+          const extractedName = match[1].trim();
+          if (extractedName.length > 2) {
+            extractedData.fullName = extractedName;
+            console.log('✅ Found name with field pattern:', extractedName);
+            break;
+          }
+        }
+      }
+      
+      // Strategy 2: Look for capitalized name patterns (common in passports)
+      if (!extractedData.fullName) {
+        // Look for lines with multiple capitalized words (likely names)
+        const namePatterns = [
         /(?:Full\s*)?Name[:\s]+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)+)/i,
         /Given\s*Name[:\s]+([A-Z][A-Za-z]+)[\s\n]+(?:Family\s*Name|Surname)[:\s]+([A-Z][A-Za-z]+)/i,
         /^([A-Z][A-Z]+)\s+([A-Z][A-Z]+)(?:\s+([A-Z][A-Z]+))?\s*$/m, // All caps names on separate line
@@ -609,6 +962,52 @@ export async function analyzeIdentityDocument(
           }
         }
       }
+      
+      // Strategy 3: Word-based analysis for name detection
+      if (!extractedData.fullName && wordDetections.length > 0) {
+        console.log('🔤 Trying word-based name extraction...');
+        
+        // Look for sequences of capitalized words that could be names
+        const validNameWords = wordDetections
+          .filter(w => w.confidence > 60) // Higher confidence words
+          .map(w => w.text)
+          .filter(word => {
+            // Filter valid name words
+            return /^[A-Z][a-z]+$/.test(word) && // Proper capitalization
+                   word.length > 1 && 
+                   !['PNG', 'PAPUA', 'GUINEA', 'REPUBLIC', 'PASSPORT', 'DOCUMENT'].includes(word.toUpperCase());
+          });
+        
+        if (validNameWords.length >= 2) {
+          // Try to find name sequences
+          const potentialNames = [];
+          for (let i = 0; i <= validNameWords.length - 2; i++) {
+            const nameCandidate = validNameWords.slice(i, i + Math.min(3, validNameWords.length - i)).join(' ');
+            if (nameCandidate.split(' ').length >= 2) {
+              potentialNames.push(nameCandidate);
+            }
+          }
+          
+          if (potentialNames.length > 0) {
+            // Use the longest potential name
+            extractedData.fullName = potentialNames.reduce((longest, current) => 
+              current.length > longest.length ? current : longest
+            );
+            console.log('✅ Word-based extraction found:', extractedData.fullName);
+            
+            // Split into parts
+            const parts = extractedData.fullName.split(' ');
+            if (parts.length >= 2) {
+              extractedData.firstName = parts[0];
+              extractedData.lastName = parts[parts.length - 1];
+              if (parts.length === 3) {
+                extractedData.middleName = parts[1];
+              }
+            }
+          }
+        }
+      }
+    }
     }
 
     // Extract document number
@@ -690,12 +1089,9 @@ export async function analyzeIdentityDocument(
       }
     }
     
-    // ULTIMATE FALLBACK: If still nothing, use a placeholder that won't show "Name Not Found"
+    // If no name found, leave empty - let Google AI handle it or user input provide it
     if (!extractedData.fullName) {
-      console.log('No name found, using ultimate fallback...');
-      extractedData.fullName = 'PNG Passport Holder';
-      extractedData.firstName = 'PNG';
-      extractedData.lastName = 'Citizen';
+      console.log('No name found in document - leaving empty for AI analysis');
     }
 
     console.log('Rekognition ID analysis result:', extractedData);

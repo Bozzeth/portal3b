@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import { Amplify } from 'aws-amplify';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { SevisPassCard } from '@/components/sevispass/SevisPassCard';
@@ -17,23 +18,53 @@ function SevisPassViewContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadUserData();
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Loading timeout - forcing loading to false');
+      setLoading(false);
+    }, 10000); // 10 second timeout
+
+    loadUserData().finally(() => {
+      clearTimeout(timeoutId);
+    });
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const loadUserData = async () => {
     try {
+      console.log('🔍 Loading user data...');
+      
+      // Check if Amplify is configured
+      try {
+        const config = Amplify.getConfig();
+        console.log('🔧 Amplify config available:', !!config.Auth?.Cognito?.userPoolId);
+        if (!config.Auth?.Cognito?.userPoolId) {
+          throw new Error('Amplify not properly configured');
+        }
+      } catch (configError) {
+        console.error('❌ Amplify configuration error:', configError);
+        // Add a delay and retry
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
       const currentUser = await getCurrentUser();
+      console.log('✅ Current user:', currentUser);
       setUser(currentUser);
       
       // Get the session to obtain the JWT token
+      console.log('🔑 Fetching auth session...');
       const session = await fetchAuthSession();
       const token = session.tokens?.accessToken?.toString();
+      console.log('🔑 Token available:', !!token);
       
       if (!token) {
+        console.error('❌ No access token available');
         throw new Error('No access token available');
       }
       
       // Check if user has a registered SevisPass or pending application
+      console.log('🌐 Calling /api/sevispass/user-data...');
       const response = await fetch('/api/sevispass/user-data', {
         method: 'GET',
         headers: {
@@ -42,7 +73,9 @@ function SevisPassViewContent() {
         },
       });
       
+      console.log('📡 Response status:', response.status);
       const result = await response.json();
+      console.log('📊 API result:', result);
       
       if (result.exists && result.data) {
         // User has an approved SevisPass
@@ -60,12 +93,13 @@ function SevisPassViewContent() {
         setApplicationData(null);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('❌ Error loading user data:', error);
       // On error, assume no SevisPass exists
       setSevisPassData(null);
       setApplicationStatus(null);
       setApplicationData(null);
     } finally {
+      console.log('✅ Setting loading to false');
       setLoading(false);
     }
   };
@@ -188,7 +222,10 @@ function SevisPassViewContent() {
           <>
             {/* Approved SevisPass */}
             <SevisPassCard 
-              data={sevisPassData}
+              data={{
+                ...sevisPassData,
+                photo: sevisPassData.photoUrl
+              }}
               showActions={true}
             />
 

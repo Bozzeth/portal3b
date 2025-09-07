@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser } from 'aws-amplify/auth';
+import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { SevisPassRegistration } from '@/components/sevispass/SevisPassRegistration';
+import { ApplicationSuccessModal } from '@/components/sevispass/ApplicationSuccessModal';
 import { ArrowLeft, Shield, Camera, FileCheck, Users } from 'lucide-react';
 
 type View = 'main' | 'register';
@@ -14,6 +15,8 @@ function SevisPassContent() {
   const router = useRouter();
   const [currentView, setCurrentView] = useState<View>('main');
   const [user, setUser] = useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [applicationResult, setApplicationResult] = useState<any>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -27,15 +30,68 @@ function SevisPassContent() {
     loadUser();
   }, []);
 
-  const handleRegistrationComplete = (data: { uin: string; status: 'approved' | 'pending' | 'rejected' }) => {
-    if (data.status === 'approved') {
-      alert(`🎉 SevisPass Approved!\n\nYour UIN: ${data.uin}\n\nYou can now use facial recognition to access government services.`);
-    } else if (data.status === 'pending') {
-      alert(`⏳ Application Under Review\n\nApplication ID: ${data.uin}\n\nYou'll receive an email notification once reviewed (1-3 business days).`);
-    } else {
-      alert(`❌ Application Rejected\n\nPlease ensure high-quality images and try again.`);
+  const handleRegistrationComplete = async (data: { 
+    uin?: string; 
+    applicationId?: string;
+    status: 'approved' | 'pending' | 'rejected';
+    fullName?: string;
+    documentType?: string;
+    submittedAt?: string;
+    rejectionReason?: string;
+  }) => {
+    try {
+      // Get additional user data if needed
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString();
+      
+      // Prepare modal data
+      const modalData = {
+        ...data,
+        submittedAt: data.submittedAt || new Date().toISOString(),
+        expectedReviewTime: data.status === 'pending' ? '3-5 business days' : undefined,
+      };
+
+      // If approved, query the database to get the complete SevisPass data
+      if (data.status === 'approved' && token) {
+        try {
+          const response = await fetch('/api/sevispass/user-data', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            if (result.exists && result.data) {
+              // Update modal data with complete SevisPass information
+              modalData.uin = result.data.uin;
+              modalData.fullName = result.data.fullName;
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching updated SevisPass data:', error);
+          // Continue with the data we have
+        }
+      }
+
+      setApplicationResult(modalData);
+      setShowSuccessModal(true);
+      setCurrentView('main');
+      
+    } catch (error) {
+      console.error('Error handling registration completion:', error);
+      
+      // Fallback to show modal with provided data
+      setApplicationResult({
+        ...data,
+        submittedAt: data.submittedAt || new Date().toISOString(),
+        expectedReviewTime: data.status === 'pending' ? '3-5 business days' : undefined,
+      });
+      setShowSuccessModal(true);
+      setCurrentView('main');
     }
-    setCurrentView('main');
   };
 
 
@@ -281,6 +337,18 @@ function SevisPassContent() {
         )}
         
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && applicationResult && (
+        <ApplicationSuccessModal
+          isOpen={showSuccessModal}
+          onClose={() => {
+            setShowSuccessModal(false);
+            setApplicationResult(null);
+          }}
+          data={applicationResult}
+        />
+      )}
     </div>
   );
 }

@@ -46,3 +46,43 @@ export async function GET(request: NextRequest) {
     });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log('Deleting all SevisPass data...');
+    
+    // Delete all applications
+    const { data: applications } = await publicServerClient.models.SevisPassApplication.list();
+    if (applications) {
+      for (const app of applications) {
+        await publicServerClient.models.SevisPassApplication.delete({ userId: app.userId });
+      }
+    }
+    
+    // Delete all holders
+    const { data: holders } = await publicServerClient.models.SevisPassHolder.list();
+    if (holders) {
+      for (const holder of holders) {
+        await publicServerClient.models.SevisPassHolder.delete({ uin: holder.uin });
+      }
+    }
+    
+    console.log(`Deleted ${applications?.length || 0} applications and ${holders?.length || 0} holders`);
+    
+    return NextResponse.json({
+      success: true,
+      message: 'All SevisPass data deleted',
+      deleted: {
+        applications: applications?.length || 0,
+        holders: holders?.length || 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('Delete API error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete data'
+    }, { status: 500 });
+  }
+}

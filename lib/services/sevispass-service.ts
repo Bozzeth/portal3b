@@ -1,6 +1,6 @@
 // SevisPass Service - Real Amplify Gen 2 DynamoDB integration
 import { uploadData } from 'aws-amplify/storage';
-import { getUrl } from 'aws-amplify/storage/server';
+import { getUrl } from 'aws-amplify/storage';
 import type { Schema } from '@/amplify/data/resource';
 import { generateUIN, generateApplicationId } from '@/lib/utils/sevispass';
 import { cookiesClient, publicServerClient, runWithAmplifyServerContext } from '@/lib/utils/amplifyServerUtils';
@@ -97,26 +97,26 @@ export class SevisPassService {
         reviewedAt: applicationData.reviewedAt,
       };
 
+      console.log('📅 Application record issuedAt field:', applicationRecord.issuedAt);
+      console.log('📅 Application record submittedAt field:', applicationRecord.submittedAt);
       console.log('Application record data:', JSON.stringify(applicationRecord, null, 2));
 
-      // Try public server client first since it has create permission
-      let data;
+      // Try public client first (simpler approach, no server context needed)
+      console.log('Attempting create with public client...');
       try {
-        console.log('Attempting create with public API key server client...');
         const result = await publicServerClient.models.SevisPassApplication.create(applicationRecord);
-        data = result.data;
-        console.log('Public client create succeeded:', !!data);
-      } catch (publicError) {
-        console.error('Public client failed:', publicError);
-        console.log('Fallback to cookies client...');
-        try {
-          const result = await cookiesClient.models.SevisPassApplication.create(applicationRecord);
-          data = result.data;
-          console.log('Cookies client create succeeded:', !!data);
-        } catch (cookiesError) {
-          console.error('Cookies client also failed:', cookiesError);
-          throw new Error(`Failed to save application - Public: ${(publicError as any)?.message || publicError}, Cookies: ${(cookiesError as any)?.message || cookiesError}`);
+        console.log('✅ Public client create result:', { success: !!result.data, errors: result.errors });
+        if (result.data) {
+          console.log('✅ Created application record with ID:', result.data.userId);
+        } else if (result.errors && result.errors.length > 0) {
+          console.error('❌ Public client create errors:', result.errors);
+          throw new Error(`Public client errors: ${JSON.stringify(result.errors)}`);
+        } else {
+          throw new Error('Public client returned no data and no errors');
         }
+      } catch (error) {
+        console.error('❌ Public client create failed:', error);
+        throw error;
       }
       console.log('DynamoDB SevisPassApplication created successfully');
 
@@ -133,29 +133,33 @@ export class SevisPassService {
           documentNumber: applicationData.extractedInfo.documentNumber,
           nationality: applicationData.extractedInfo.nationality,
           issuedAt: applicationData.issuedAt!,
-          expiryDate: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
+          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
           status: 'active' as const, // Explicitly set default status with proper type
           faceId: applicationData.verificationData.faceId,
           documentImageKey: documentKey,
           photoImageKey: selfieKey,
         };
 
+        console.log('📅 Holder record issuedAt field:', holderRecord.issuedAt);
+        console.log('📅 Holder record expiryDate field:', holderRecord.expiryDate);
         console.log('Holder record data:', JSON.stringify(holderRecord, null, 2));
 
+        // Try public client for holder creation (no server context needed)
+        console.log('Attempting holder create with public client...');
         try {
-          console.log('Attempting holder create with public API key server client...');
-          const { data: holderData } = await publicServerClient.models.SevisPassHolder.create(holderRecord);
-          console.log('Public client holder create succeeded:', !!holderData);
-        } catch (publicError) {
-          console.error('Public client holder failed:', publicError);
-          console.log('Fallback to cookies client for holder...');
-          try {
-            const { data: holderData } = await cookiesClient.models.SevisPassHolder.create(holderRecord);
-            console.log('Cookies client holder create succeeded:', !!holderData);
-          } catch (cookiesError) {
-            console.error('Cookies client holder also failed:', cookiesError);
-            throw new Error(`Failed to save holder - Public: ${(publicError as any)?.message || publicError}, Cookies: ${(cookiesError as any)?.message || cookiesError}`);
+          const result = await publicServerClient.models.SevisPassHolder.create(holderRecord);
+          console.log('✅ Public client holder result:', { success: !!result.data, errors: result.errors });
+          if (result.data) {
+            console.log('✅ Created holder record with UIN:', result.data.uin);
+          } else if (result.errors && result.errors.length > 0) {
+            console.error('❌ Public client holder errors:', result.errors);
+            throw new Error(`Public holder errors: ${JSON.stringify(result.errors)}`);
+          } else {
+            throw new Error('Public holder client returned no data and no errors');
           }
+        } catch (error) {
+          console.error('❌ Public client holder create failed:', error);
+          throw error;
         }
         console.log('SevisPassHolder record created successfully');
       }
@@ -253,11 +257,9 @@ export class SevisPassService {
       let photoUrl = undefined;
       if (holder.photoImageKey && typeof holder.photoImageKey === 'string') {
         try {
-          const urlResult = await runWithAmplifyServerContext({
-            nextServerContext: null,
-            operation: (contextSpec) => getUrl(contextSpec, {
-              key: holder.photoImageKey as string
-            })
+          // Use direct getUrl without server context
+          const urlResult = await getUrl({
+            path: holder.photoImageKey as string
           });
           photoUrl = urlResult.url.toString();
         } catch (error) {

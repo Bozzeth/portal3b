@@ -30,6 +30,9 @@ export function SevisPassRegistration({ onComplete, onCancel }: SevisPassRegistr
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [applicationId, setApplicationId] = useState<string>('');
+  const [livenessStep, setLivenessStep] = useState<'instructions' | 'blink' | 'smile' | 'turn_left' | 'turn_right' | 'complete'>('instructions');
+  const [livenessFrames, setLivenessFrames] = useState<string[]>([]);
+  const [currentInstruction, setCurrentInstruction] = useState('');
 
   const documentInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -164,20 +167,102 @@ export function SevisPassRegistration({ onComplete, onCancel }: SevisPassRegistr
 
   const startFaceCapture = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      // Enhanced mobile-first camera constraints
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      const constraints = {
+        video: {
           facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
-      });
+          width: isMobile ? { min: 640, ideal: 1280, max: 1920 } : { ideal: 1280 },
+          height: isMobile ? { min: 480, ideal: 720, max: 1080 } : { ideal: 720 },
+          frameRate: { ideal: 30, max: 60 },
+          // Additional mobile optimizations
+          ...(isMobile && {
+            aspectRatio: { ideal: 4/3 },
+            facingMode: { exact: 'user' }
+          })
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Ensure video plays automatically on mobile
+        videoRef.current.playsInline = true;
+        videoRef.current.muted = true;
+        
+        // Wait for video to load metadata before starting liveness
+        videoRef.current.onloadedmetadata = () => {
+          setLivenessStep('instructions');
+          setCurrentInstruction('Please position your face in the center of the frame');
+        };
       }
     } catch (err) {
-      setError('Unable to access camera. Please check permissions.');
+      console.error('Camera access error:', err);
+      setError('Unable to access camera. Please check permissions and try again.');
     }
+  };
+
+  // Liveness detection functions
+  const captureFrame = () => {
+    if (!videoRef.current || !canvasRef.current) return null;
+    
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const context = canvas.getContext('2d');
+    
+    if (!context) return null;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+    
+    return canvas.toDataURL('image/jpeg', 0.9);
+  };
+
+  const startLivenessDetection = () => {
+    const livenessSteps = ['blink', 'smile', 'turn_left', 'turn_right'];
+    const instructions = {
+      blink: '👁️ Please blink your eyes naturally',
+      smile: '😊 Please smile',
+      turn_left: '← Please turn your head slightly left',
+      turn_right: '→ Please turn your head slightly right'
+    };
+
+    let currentStepIndex = 0;
+    const frames: string[] = [];
+    
+    const nextStep = () => {
+      if (currentStepIndex < livenessSteps.length) {
+        const step = livenessSteps[currentStepIndex] as keyof typeof instructions;
+        setLivenessStep(step);
+        setCurrentInstruction(instructions[step]);
+        
+        // Capture frame after 2 seconds
+        setTimeout(() => {
+          const frame = captureFrame();
+          if (frame) {
+            frames.push(frame);
+            setLivenessFrames([...frames]);
+          }
+          
+          currentStepIndex++;
+          if (currentStepIndex < livenessSteps.length) {
+            setTimeout(nextStep, 1000); // 1 second between steps
+          } else {
+            // Liveness complete
+            setLivenessStep('complete');
+            setCurrentInstruction('Liveness detection complete! Taking final photo...');
+            setTimeout(() => {
+              capturePhoto();
+            }, 1500);
+          }
+        }, 2500);
+      }
+    };
+    
+    setTimeout(nextStep, 1000);
   };
 
   const capturePhoto = () => {
@@ -447,31 +532,59 @@ export function SevisPassRegistration({ onComplete, onCancel }: SevisPassRegistr
 
     return (
       <div>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--foreground)', marginBottom: '8px' }}>
-            Facial Verification
+        <div style={{ 
+          textAlign: 'center', 
+          marginBottom: '24px',
+          maxWidth: '100vw',
+          padding: '0 16px'
+        }}>
+          <h2 style={{ fontSize: 'clamp(20px, 5vw, 24px)', fontWeight: '600', color: 'var(--foreground)', marginBottom: '8px' }}>
+            Liveness Detection
           </h2>
           <p style={{ color: 'var(--muted-foreground)', fontSize: '16px', marginBottom: '16px' }}>
-            Position your face in the center and capture a clear photo
+            Follow the instructions for secure identity verification
           </p>
           
+          {/* Liveness Progress Indicator */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '8px',
+            marginBottom: '16px',
+            flexWrap: 'wrap'
+          }}>
+            {['instructions', 'blink', 'smile', 'turn_left', 'turn_right', 'complete'].map((step, index) => (
+              <div
+                key={step}
+                style={{
+                  width: 'clamp(30px, 8vw, 40px)',
+                  height: '6px',
+                  borderRadius: '3px',
+                  backgroundColor: 
+                    ['instructions', 'blink', 'smile', 'turn_left', 'turn_right', 'complete'].indexOf(livenessStep) >= index
+                      ? 'var(--primary)' 
+                      : 'var(--border)'
+                }}
+              />
+            ))}
+          </div>
+          
+          {/* Current Instruction */}
           <div style={{
             background: 'var(--muted)',
-            borderRadius: '8px',
+            borderRadius: '12px',
             padding: '16px',
-            fontSize: '14px',
-            color: 'var(--muted-foreground)',
-            textAlign: 'left',
-            marginBottom: '24px'
+            fontSize: 'clamp(14px, 4vw, 16px)',
+            fontWeight: '500',
+            color: 'var(--foreground)',
+            marginBottom: '24px',
+            minHeight: '60px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center'
           }}>
-            <strong>Face Capture Guidelines:</strong>
-            <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
-              <li>Look directly at the camera</li>
-              <li>Ensure good lighting on your face</li>
-              <li>Remove sunglasses, hats, or face coverings</li>
-              <li>Keep a neutral expression</li>
-              <li>Stay still during capture</li>
-            </ul>
+            {currentInstruction || 'Please position your face in the center of the frame and click "Start Liveness Detection"'}
           </div>
         </div>
 
@@ -510,55 +623,109 @@ export function SevisPassRegistration({ onComplete, onCancel }: SevisPassRegistr
           </div>
         ) : (
           <div style={{ textAlign: 'center' }}>
+            {/* Mobile-first responsive video container */}
             <div style={{ 
               position: 'relative',
               display: 'inline-block',
               borderRadius: '20px',
               overflow: 'hidden',
-              border: '4px solid var(--primary)'
+              border: '4px solid var(--primary)',
+              maxWidth: '100vw',
+              margin: '0 auto'
             }}>
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
                 style={{ 
-                  width: '400px',
-                  height: '300px',
-                  objectFit: 'cover'
+                  width: '100%',
+                  maxWidth: '400px',
+                  height: 'auto',
+                  aspectRatio: '4/3',
+                  objectFit: 'cover',
+                  display: 'block'
                 }}
               />
+              
+              {/* Face guide overlay */}
               <div style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: '200px',
-                height: '250px',
-                border: '3px solid rgba(255, 255, 255, 0.8)',
+                width: '60%',
+                maxWidth: '200px',
+                aspectRatio: '4/5',
+                border: '3px solid rgba(255, 255, 255, 0.9)',
                 borderRadius: '50%',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                boxShadow: '0 0 0 2000px rgba(0, 0, 0, 0.3)'
               }} />
+              
+              {/* Liveness instruction overlay */}
+              {livenessStep !== 'instructions' && livenessStep !== 'complete' && (
+                <div style={{
+                  position: 'absolute',
+                  top: '20px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: 'rgba(0, 0, 0, 0.8)',
+                  color: 'white',
+                  padding: '12px 20px',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap',
+                  zIndex: 10
+                }}>
+                  {currentInstruction}
+                </div>
+              )}
             </div>
             
             <canvas ref={canvasRef} style={{ display: 'none' }} />
             
             <div style={{ marginTop: '24px' }}>
-              <button
-                onClick={capturePhoto}
-                style={{
-                  padding: '16px 32px',
-                  border: 'none',
-                  borderRadius: '50px',
-                  background: 'var(--primary)',
+              {livenessStep === 'instructions' ? (
+                <button
+                  onClick={startLivenessDetection}
+                  style={{
+                    padding: '16px 32px',
+                    border: 'none',
+                    borderRadius: '50px',
+                    background: 'var(--primary)',
+                    color: 'white',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+                  }}
+                >
+                  🔒 Start Liveness Detection
+                </button>
+              ) : livenessStep === 'complete' ? (
+                <div style={{
+                  padding: '16px',
+                  background: 'var(--success)',
                   color: 'white',
+                  borderRadius: '12px',
                   fontSize: '16px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-                }}
-              >
-                📸 Capture Photo
-              </button>
+                  fontWeight: '600'
+                }}>
+                  ✅ Liveness Verified - Processing...
+                </div>
+              ) : (
+                <div style={{
+                  padding: '16px',
+                  background: 'var(--muted)',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  color: 'var(--muted-foreground)'
+                }}>
+                  Please follow the instructions above
+                </div>
+              )}
             </div>
           </div>
         )}

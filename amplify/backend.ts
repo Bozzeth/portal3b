@@ -16,6 +16,7 @@ const rekognitionPolicy = new PolicyStatement({
   actions: [
     'rekognition:CompareFaces', 
     'rekognition:DetectFaces',
+    'rekognition:DetectText',      // Added for document text extraction
     'rekognition:IndexFaces',
     'rekognition:SearchFacesByImage',
     'rekognition:CreateCollection',

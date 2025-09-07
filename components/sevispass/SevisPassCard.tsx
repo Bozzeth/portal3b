@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Download, Share2, Eye, EyeOff } from 'lucide-react';
 
@@ -21,6 +21,8 @@ interface SevisPassCardProps {
 
 export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) {
   const [showDetails, setShowDetails] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   
   // Generate QR code data for verification
   const qrData = JSON.stringify({
@@ -50,29 +52,153 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
     }
   };
 
-  const handleDownload = () => {
-    // Create a canvas and render the card for download
-    alert('Download functionality would generate a PDF/PNG of the SevisPass card');
+  const handleDownload = async () => {
+    if (!cardRef.current || isDownloading) return;
+    
+    setIsDownloading(true);
+    
+    try {
+      // Dynamic imports to avoid SSR issues
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+      
+      // Temporarily hide action buttons for clean screenshot
+      const actionButtons = document.querySelector('[data-actions]') as HTMLElement;
+      const originalDisplay = actionButtons?.style.display;
+      if (actionButtons) {
+        actionButtons.style.display = 'none';
+      }
+      
+      // Wait a moment for styles to apply
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Capture the card as canvas
+      const canvas = await html2canvas(cardRef.current, {
+        useCORS: true,
+        allowTaint: true
+      } as any);
+      
+      // Restore action buttons
+      if (actionButtons && originalDisplay !== undefined) {
+        actionButtons.style.display = originalDisplay;
+      }
+      
+      // Create PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Calculate dimensions to fit nicely on page
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
+      
+      // Download the PDF
+      pdf.save(`SevisPass-${data.uin}.pdf`);
+      
+    } catch (error) {
+      console.error('Error generating download:', error);
+      alert('Failed to download SevisPass. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'My SevisPass',
-        text: `My PNG Digital Identity - UIN: ${data.uin}`,
-        url: window.location.href
+  const handleShare = async () => {
+    if (!cardRef.current || isDownloading) return;
+    
+    try {
+      // Generate PDF first
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+      
+      // Temporarily hide action buttons for clean screenshot
+      const actionButtons = document.querySelector('[data-actions]') as HTMLElement;
+      const originalDisplay = actionButtons?.style.display;
+      if (actionButtons) {
+        actionButtons.style.display = 'none';
+      }
+      
+      // Wait a moment for styles to apply
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Capture the card as canvas
+      const canvas = await html2canvas(cardRef.current, {
+        useCORS: true,
+        allowTaint: true
+      } as any);
+      
+      // Restore action buttons
+      if (actionButtons && originalDisplay !== undefined) {
+        actionButtons.style.display = originalDisplay;
+      }
+      
+      // Create PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
       });
-    } else {
-      // Fallback to clipboard
-      navigator.clipboard.writeText(`My SevisPass UIN: ${data.uin}\nVerify at: ${window.location.origin}/verify`);
-      alert('SevisPass details copied to clipboard!');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
+      
+      // Convert PDF to blob
+      const pdfBlob = pdf.output('blob');
+      const file = new File([pdfBlob], `SevisPass-${data.uin}.pdf`, { type: 'application/pdf' });
+      
+      // Try to share PDF file
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'My SevisPass',
+          text: `My PNG Digital Identity - UIN: ${data.uin}`,
+          files: [file]
+        });
+      } else {
+        // Fallback: download the PDF and copy text
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SevisPass-${data.uin}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Also copy verification info to clipboard
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(`My SevisPass UIN: ${data.uin}\nVerify at: ${window.location.origin}/verify`);
+          alert('SevisPass PDF downloaded and verification details copied to clipboard!');
+        } else {
+          alert('SevisPass PDF downloaded!');
+        }
+      }
+    } catch (error) {
+      console.error('Error sharing SevisPass:', error);
+      // Fallback to text sharing
+      if (navigator.share) {
+        navigator.share({
+          title: 'My SevisPass',
+          text: `My PNG Digital Identity - UIN: ${data.uin}`,
+          url: window.location.href
+        });
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(`My SevisPass UIN: ${data.uin}\nVerify at: ${window.location.origin}/verify`);
+        alert('SevisPass details copied to clipboard!');
+      }
     }
   };
 
   return (
     <div style={{ width: '100%', maxWidth: '600px', margin: '0 auto' }}>
       {/* Card Container */}
-      <div style={{
+      <div ref={cardRef} style={{
         background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #1e40af 100%)',
         borderRadius: '20px',
         padding: '32px',
@@ -170,17 +296,31 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
               width: '80px',
               height: '80px',
               borderRadius: '12px',
-              background: data.photo ? `url(${data.photo})` : 'rgba(255, 255, 255, 0.2)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
               marginBottom: '20px',
               border: '3px solid rgba(255, 255, 255, 0.3)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '32px'
+              fontSize: '32px',
+              overflow: 'hidden',
+              background: 'rgba(255, 255, 255, 0.2)'
             }}>
-              {!data.photo && '👤'}
+              {data.photo ? (
+                <img 
+                  src={data.photo} 
+                  alt="Profile Photo"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    borderRadius: '9px'
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.innerHTML = '👤';
+                  }}
+                />
+              ) : '👤'}
             </div>
             
             {showDetails ? (
@@ -279,7 +419,7 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
 
       {/* Action Buttons */}
       {showActions && (
-        <div style={{
+        <div data-actions style={{
           display: 'flex',
           gap: '12px',
           marginTop: '24px',
@@ -346,31 +486,37 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
 
           <button
             onClick={handleDownload}
+            disabled={isDownloading}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
               padding: '12px 20px',
-              background: 'var(--success)',
+              background: isDownloading ? 'var(--muted)' : 'var(--success)',
               border: 'none',
               borderRadius: '10px',
               color: 'white',
-              cursor: 'pointer',
+              cursor: isDownloading ? 'not-allowed' : 'pointer',
               fontSize: '14px',
               fontWeight: '500',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              opacity: isDownloading ? 0.7 : 1
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
+              if (!isDownloading) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
+              if (!isDownloading) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }
             }}
           >
             <Download size={16} />
-            Download
+            {isDownloading ? 'Generating...' : 'Download'}
           </button>
         </div>
       )}

@@ -136,6 +136,38 @@ export default function VerifyPage() {
 
         {verificationResult.valid && verificationResult.data ? (
           <div>
+            {/* Photo Display */}
+            {(verificationResult.data as any).photoUrl && (
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                marginBottom: '24px' 
+              }}>
+                <div style={{
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  border: '3px solid var(--primary)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }}>
+                  <img 
+                    src={(verificationResult.data as any).photoUrl}
+                    alt="SevisPass Photo"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                    onError={(e) => {
+                      console.error('Photo failed to load');
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            
             <div
               style={{
                 display: "grid",
