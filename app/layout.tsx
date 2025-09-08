@@ -6,8 +6,11 @@ import AmplifyProvider from "@/components/AmplifyProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SevisPortal - PNG Digital Government Platform",
-  description: "Papua New Guinea's comprehensive digital government platform providing citizens with seamless access to essential government services, identity verification, and credential issuance.",
+  title: "Sevis Portal - PNG Digital Government Services",
+  description: "Papua New Guinea's comprehensive digital government services providing citizens with seamless access to essential government services, identity verification, and credential issuance.",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

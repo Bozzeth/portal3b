@@ -8,6 +8,7 @@ import { getCurrentUser } from 'aws-amplify/auth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { CustomAuth } from '@/components/auth/CustomAuth';
 import { SevisPassRegistration } from '@/components/sevispass/SevisPassRegistration';
+import { LogoInline } from '@/components/ui/Logo';
 
 // Ensure configuration is applied properly
 if (typeof window !== 'undefined') {
@@ -109,29 +110,16 @@ export default function AuthPage() {
           <>
             {/* Header */}
             <div style={{ textAlign: 'center' }}>
-              <div style={{ 
-                background: 'linear-gradient(90deg, #DC2626 0%, #FCD34D 100%)',
-                height: '4px',
-                width: '80px',
-                margin: '0 auto 20px auto',
-                borderRadius: '2px'
-              }}></div>
-              <h1 style={{ 
-                fontSize: 'clamp(28px, 5vw, 36px)', 
-                fontWeight: '700', 
-                color: 'var(--foreground)', 
-                margin: '0 0 8px 0',
-                letterSpacing: '-0.01em'
-              }}>
-                SevisPortal
-              </h1>
+              <div style={{ marginBottom: '20px' }}>
+                <LogoInline size="large" showText={true} variant="stacked" />
+              </div>
               <p style={{ 
                 color: 'var(--muted-foreground)', 
                 fontSize: '16px',
                 margin: '0',
-                fontWeight: '400'
+                fontWeight: '500'
               }}>
-                Papua New Guinea Digital Government Platform
+                Papua New Guinea Digital Government Services
               </p>
             </div>
 
