@@ -20,6 +20,8 @@ export interface SevisPassApplicationData {
     confidence: number;
     requiresManualReview: boolean;
     faceId?: string;
+    duplicateDetected?: boolean;
+    existingUin?: string;
   };
   uin?: string;
   issuedAt?: string;
