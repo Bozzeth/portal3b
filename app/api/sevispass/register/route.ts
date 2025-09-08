@@ -4,6 +4,7 @@ import {
   verifySevisPassRegistration,
   base64ToUint8Array,
   extractTextFromDocument,
+  checkForDuplicateFace,
 } from "@/lib/aws/rekognition";
 import { 
   analyzeDocument, 
@@ -207,7 +208,46 @@ export async function POST(req: NextRequest) {
             message: "SevisPass approved successfully",
           };
         } else if (verificationResult.requiresManualReview) {
-          // Requires manual review - save to review queue
+          // Handle duplicate detection case
+          if (verificationResult.duplicateDetected) {
+            console.log("🚨 Duplicate face detected - flagging for manual review");
+            
+            // Save application with special duplicate flag for admin review
+            await SevisPassService.saveApplication(
+              userId,
+              {
+                applicationId,
+                status: "under_review", 
+                submittedAt: new Date().toISOString(),
+                documentType,
+                extractedInfo,
+                verificationData: {
+                  confidence: verificationResult.confidence,
+                  requiresManualReview: true,
+                  duplicateDetected: true,
+                  existingUin: verificationResult.existingUin,
+                },
+                rejectionReason: `Potential duplicate identity detected. Similar face found in existing SevisPass with UIN: ${verificationResult.existingUin}. Manual verification required.`,
+              },
+              documentImage,
+              selfieImage,
+              contextSpec
+            );
+
+            return {
+              success: false, // Mark as failed due to duplicate
+              applicationId: applicationId,
+              status: "under_review",
+              confidence: verificationResult.confidence,
+              extractedInfo,
+              error: verificationResult.error,
+              duplicateDetected: true,
+              existingUin: verificationResult.existingUin,
+              message: "Duplicate identity detected. Your application has been flagged for manual review. Please contact support if you believe this is an error.",
+            };
+          }
+          
+          // Regular manual review (not duplicate-related)
           console.log("Saving application for manual review");
           await SevisPassService.saveApplication(
             userId,

@@ -1232,7 +1232,65 @@ export function base64ToUint8Array(base64String: string): Uint8Array {
 }
 
 /**
- * Comprehensive face verification for SevisPass registration
+ * Check for duplicate faces in the SevisPass collection
+ */
+export async function checkForDuplicateFace(
+  selfieBase64: string,
+  contextSpec?: any
+): Promise<{
+  isDuplicate: boolean;
+  existingUin?: string;
+  confidence?: number;
+  error?: string;
+}> {
+  try {
+    // Initialize collection if it doesn't exist
+    await initializeCollection(contextSpec);
+    
+    const selfieBytes = base64ToUint8Array(selfieBase64);
+    
+    // Search for existing faces in the collection
+    const searchResult = await searchFaceInCollection(
+      selfieBytes, 
+      CONFIDENCE_THRESHOLDS.MANUAL_REVIEW // Use lower threshold for duplicate detection
+    );
+    
+    if (!searchResult.success) {
+      // No matches found - this is good, no duplicate
+      return {
+        isDuplicate: false
+      };
+    }
+    
+    if (searchResult.bestMatch) {
+      const { uin, confidence } = searchResult.bestMatch;
+      
+      // If we found a match with reasonable confidence, it's likely a duplicate
+      if (confidence >= CONFIDENCE_THRESHOLDS.MANUAL_REVIEW) {
+        return {
+          isDuplicate: true,
+          existingUin: uin,
+          confidence
+        };
+      }
+    }
+    
+    // No significant matches found
+    return {
+      isDuplicate: false
+    };
+    
+  } catch (error) {
+    console.error('Error checking for duplicate face:', error);
+    return {
+      isDuplicate: false,
+      error: 'Failed to check for duplicate faces'
+    };
+  }
+}
+
+/**
+ * Comprehensive face verification for SevisPass registration with deduplication
  */
 export async function verifySevisPassRegistration(
   selfieBase64: string,
@@ -1245,10 +1303,30 @@ export async function verifySevisPassRegistration(
   requiresManualReview: boolean;
   faceId?: string;
   error?: string;
+  duplicateDetected?: boolean;
+  existingUin?: string;
 }> {
   try {
     const selfieBytes = base64ToUint8Array(selfieBase64);
     const documentBytes = base64ToUint8Array(documentPhotoBase64);
+
+    // 0. FIRST: Check for duplicate faces in the collection
+    console.log('🔍 Checking for duplicate faces in SevisPass collection...');
+    const duplicateCheck = await checkForDuplicateFace(selfieBase64, contextSpec);
+    
+    if (duplicateCheck.isDuplicate) {
+      console.log('⚠️ Duplicate face detected! Existing UIN:', duplicateCheck.existingUin, 'Confidence:', duplicateCheck.confidence);
+      return {
+        approved: false,
+        confidence: duplicateCheck.confidence || 0,
+        requiresManualReview: true, // Flag for manual review to determine if it's legitimate
+        error: `Duplicate identity detected. A SevisPass with similar facial features already exists (UIN: ${duplicateCheck.existingUin}). If this is an error, please contact support.`,
+        duplicateDetected: true,
+        existingUin: duplicateCheck.existingUin
+      };
+    }
+    
+    console.log('✅ No duplicate faces detected, proceeding with registration...');
 
     // 1. Detect faces in both images
     const selfieFaceResult = await detectFaces(selfieBytes, contextSpec);
