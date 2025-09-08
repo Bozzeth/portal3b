@@ -58,7 +58,7 @@ function DashboardContent() {
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <div style={{ marginBottom: '8px' }}>
-                <LogoInline size="medium" showText={true} variant="horizontal" />
+                <LogoInline size="medium" showText={true} variant="horizontal" solidYellow={true} />
               </div>
               <p style={{ 
                 color: 'var(--muted-foreground)', 
