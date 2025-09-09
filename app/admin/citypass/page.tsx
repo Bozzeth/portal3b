@@ -95,7 +95,7 @@ function CityPassAdminContent() {
       const result = await (client.models as any).CityPassApplication.list();
       if (result.data) {
         // Sort by submission date (newest first)
-        const sortedApps = result.data.sort((a, b) => 
+        const sortedApps = result.data.sort((a: any, b: any) => 
           new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
         );
         setApplications(sortedApps as CityPassApplication[]);
