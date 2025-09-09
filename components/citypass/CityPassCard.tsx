@@ -164,7 +164,7 @@ export function CityPassCard({ data, showActions = true }: CityPassCardProps) {
       
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to download CityPass. Please try again. Error: ' + error.message);
+      alert('Failed to download CityPass. Please try again. Error: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsDownloading(false);
     }

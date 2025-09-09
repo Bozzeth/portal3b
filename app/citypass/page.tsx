@@ -110,7 +110,7 @@ function CityPassContent() {
 
         if (result.data && result.data.length > 0) {
           // Get the most recent application
-          const latestApp = result.data.sort((a, b) => 
+          const latestApp = result.data.sort((a: any, b: any) => 
             new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
           )[0];
           

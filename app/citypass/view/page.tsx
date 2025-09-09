@@ -76,7 +76,7 @@ function CityPassViewContent() {
         
         if (appResult.data && appResult.data.length > 0) {
           // Get most recent application
-          const latestApp = appResult.data.sort((a, b) => 
+          const latestApp = appResult.data.sort((a: any, b: any) => 
             new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
           )[0];
           

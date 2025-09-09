@@ -157,7 +157,7 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
       
     } catch (error) {
       console.error('Error generating download:', error);
-      alert('Failed to download SevisPass. Please try again. Error: ' + error.message);
+      alert('Failed to download SevisPass. Please try again. Error: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsDownloading(false);
     }
