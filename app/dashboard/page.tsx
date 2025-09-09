@@ -6,6 +6,7 @@ import { getCurrentUser, signOut } from 'aws-amplify/auth';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { LogoInline } from '@/components/ui/Logo';
+import { getSevisPassSession, clearSevisPassSession, hasValidSevisPassSession } from '@/lib/services/sevispass-auth-service';
 
 function DashboardContent() {
   const router = useRouter();
@@ -14,12 +15,31 @@ function DashboardContent() {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        // Try Cognito first
         const currentUser = await getCurrentUser();
-        console.log('Dashboard user object:', currentUser);
-        setUser(currentUser);
+        console.log('Dashboard user object (Cognito):', currentUser);
+        setUser({ ...currentUser, authMethod: 'cognito' });
       } catch (error) {
-        console.error('Error loading user in dashboard:', error);
-        // AuthGuard will handle redirect
+        // If Cognito fails, check SevisPass
+        console.log('No Cognito user, checking SevisPass session...');
+        
+        if (hasValidSevisPassSession()) {
+          const sevisPassSession = getSevisPassSession();
+          if (sevisPassSession) {
+            console.log('Dashboard user object (SevisPass):', sevisPassSession);
+            const sevisUser = {
+              username: sevisPassSession.uin,
+              userId: sevisPassSession.cognitoUserId,
+              attributes: {
+                name: sevisPassSession.userFullName,
+                uin: sevisPassSession.uin
+              },
+              authMethod: 'sevispass',
+              sevisPassSession
+            };
+            setUser(sevisUser);
+          }
+        }
       }
     };
     loadUser();
@@ -27,10 +47,21 @@ function DashboardContent() {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
-      router.push('/');
+      if (user?.authMethod === 'sevispass') {
+        // SevisPass logout
+        console.log('🚪 SevisPass user signing out...');
+        clearSevisPassSession();
+        router.push('/');
+      } else {
+        // Cognito logout
+        console.log('🚪 Cognito user signing out...');
+        await signOut();
+        router.push('/');
+      }
     } catch (error) {
       console.error('Error signing out:', error);
+      // Clear any sessions and redirect anyway
+      clearSevisPassSession();
       router.push('/');
     }
   };
@@ -80,10 +111,16 @@ function DashboardContent() {
               {user && (
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontWeight: '500', margin: '0', fontSize: '14px' }}>
-                    {(user && (user.signInDetails?.loginId || user.username || user.userId)) || 'Authenticated User'}
+                    {user.authMethod === 'sevispass' 
+                      ? user.attributes?.name || user.username
+                      : (user.signInDetails?.loginId || user.username || user.userId) || 'Authenticated User'
+                    }
                   </p>
                   <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', margin: '0' }}>
-                    Authenticated
+                    {user.authMethod === 'sevispass' 
+                      ? `SevisPass • ${user.attributes?.uin}` 
+                      : 'Authenticated'
+                    }
                   </p>
                 </div>
               )}
@@ -131,16 +168,22 @@ function DashboardContent() {
                 available: true
               },
               {
+                title: 'My CityPass',
+                description: 'View and manage your Port Moresby resident credentials',
+                link: '/citypass/view',
+                available: true
+              },
+              {
                 title: 'Statement of School Results',
                 description: 'Access and verify academic records and certificates',
                 link: '/education/results',
                 available: false
               },
               {
-                title: 'CityPass Application', 
-                description: 'Port Moresby resident credentials and city services',
-                link: '/citypass/apply',
-                available: false
+                title: 'CityPass Admin',
+                description: 'Review and approve CityPass applications',
+                link: '/admin/citypass',
+                available: true
               },
               {
                 title: 'Medical Record Number',

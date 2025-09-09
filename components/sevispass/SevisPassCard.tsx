@@ -69,17 +69,40 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
         actionButtons.style.display = 'none';
       }
       
-      // Wait a moment for styles to apply
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait longer for all elements to render properly
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Capture the card as canvas with better image handling
+      // Ensure all images are loaded
+      const images = cardRef.current.querySelectorAll('img');
+      await Promise.all(Array.from(images).map(img => {
+        return new Promise((resolve) => {
+          if (img.complete) {
+            resolve(null);
+          } else {
+            img.onload = () => resolve(null);
+            img.onerror = () => resolve(null);
+            // Timeout after 3 seconds
+            setTimeout(() => resolve(null), 3000);
+          }
+        });
+      }));
+      
+      // Capture the card as canvas with improved settings
       const canvas = await html2canvas(cardRef.current, {
         useCORS: true,
-        allowTaint: true,
-        foreignObjectRendering: true,
-        logging: false,
-        scale: 2, // Higher resolution
-        backgroundColor: null // Preserve transparency
+        allowTaint: false,
+        foreignObjectRendering: false,
+        logging: true,
+        scale: 3, // Higher resolution for better quality
+        backgroundColor: '#ffffff', // White background instead of transparent
+        width: cardRef.current.scrollWidth,
+        height: cardRef.current.scrollHeight,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: cardRef.current.scrollWidth,
+        windowHeight: cardRef.current.scrollHeight
       } as any);
       
       // Restore action buttons
@@ -87,26 +110,54 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
         actionButtons.style.display = originalDisplay;
       }
       
-      // Create PDF
-      const imgData = canvas.toDataURL('image/png');
+      // Check if canvas has content
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Canvas is empty - failed to capture card content');
+      }
+      
+      // Create PDF with better dimensions
+      const imgData = canvas.toDataURL('image/jpeg', 0.95); // Use JPEG for smaller file size
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
       
-      // Calculate dimensions to fit nicely on page
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      // Calculate dimensions to fit nicely on page with margins
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const availableWidth = pageWidth - (margin * 2);
+      const availableHeight = pageHeight - (margin * 2);
       
-      pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
+      // Calculate scaled dimensions maintaining aspect ratio
+      const aspectRatio = canvas.width / canvas.height;
+      let imgWidth = availableWidth;
+      let imgHeight = imgWidth / aspectRatio;
+      
+      if (imgHeight > availableHeight) {
+        imgHeight = availableHeight;
+        imgWidth = imgHeight * aspectRatio;
+      }
+      
+      // Center the image
+      const xPosition = (pageWidth - imgWidth) / 2;
+      const yPosition = (pageHeight - imgHeight) / 2;
+      
+      pdf.addImage(imgData, 'JPEG', xPosition, yPosition, imgWidth, imgHeight);
+      
+      // Add document title
+      pdf.setFontSize(16);
+      pdf.text('SevisPass - PNG Digital Identity', margin, margin);
+      pdf.setFontSize(10);
+      pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, margin + 7);
       
       // Download the PDF
-      pdf.save(`SevisPass-${data.uin}.pdf`);
+      pdf.save(`SevisPass-${data.uin}-${Date.now()}.pdf`);
       
     } catch (error) {
       console.error('Error generating download:', error);
-      alert('Failed to download SevisPass. Please try again.');
+      alert('Failed to download SevisPass. Please try again. Error: ' + error.message);
     } finally {
       setIsDownloading(false);
     }
