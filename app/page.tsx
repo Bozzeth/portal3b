@@ -3,24 +3,8 @@
 import { Footer } from "@/components/layout/Footer";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { LogoInline } from "@/components/ui/Logo";
-import { useState } from "react";
 
 export default function LandingPage() {
-  const [showSevisLogin, setShowSevisLogin] = useState(false);
-  const [uin, setUin] = useState("");
-
-  const handleSevisPassLogin = () => {
-    setShowSevisLogin(true);
-  };
-
-  const handleUinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (uin.trim()) {
-      // Future: Open camera for facial verification
-      alert(`Future: Opening camera for facial verification with UIN: ${uin}`);
-    }
-  };
-
   return (
     <div
       style={{
@@ -41,7 +25,7 @@ export default function LandingPage() {
         <ThemeToggle />
       </div>
 
-      {/* Subtle Background Pattern */}
+      {/* Geometric Background Elements */}
       <div
         style={{
           position: "absolute",
@@ -52,6 +36,63 @@ export default function LandingPage() {
           background:
             "radial-gradient(circle at 30% 70%, var(--accent) 0%, transparent 50%)",
           opacity: 0.3,
+          zIndex: 1,
+        }}
+      ></div>
+      
+      {/* Geometric Shapes */}
+      <div
+        style={{
+          position: "absolute",
+          top: "10%",
+          right: "10%",
+          width: "120px",
+          height: "120px",
+          background: "linear-gradient(45deg, var(--primary), var(--accent))",
+          borderRadius: "50%",
+          opacity: 0.1,
+          zIndex: 1,
+        }}
+      ></div>
+      
+      <div
+        style={{
+          position: "absolute",
+          bottom: "15%",
+          left: "5%",
+          width: "80px",
+          height: "80px",
+          background: "var(--primary)",
+          transform: "rotate(45deg)",
+          opacity: 0.15,
+          zIndex: 1,
+        }}
+      ></div>
+      
+      <div
+        style={{
+          position: "absolute",
+          top: "60%",
+          right: "20%",
+          width: "60px",
+          height: "60px",
+          background: "var(--accent)",
+          clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
+          opacity: 0.2,
+          zIndex: 1,
+        }}
+      ></div>
+      
+      <div
+        style={{
+          position: "absolute",
+          top: "20%",
+          left: "15%",
+          width: "100px",
+          height: "100px",
+          border: "3px solid var(--primary)",
+          borderRadius: "50%",
+          opacity: 0.1,
           zIndex: 1,
         }}
       ></div>
@@ -123,7 +164,7 @@ export default function LandingPage() {
                     margin: "0 auto",
                   }}
                 >
-                  Official digital identity verification and secure access to government services
+                  Bringing the government closer to the people
                 </p>
               </div>
 
@@ -170,166 +211,16 @@ export default function LandingPage() {
                 >
                   Get Started
                 </a>
-                <button
-                  style={{
-                    background: "transparent",
-                    border: "1px solid var(--border)",
-                    color: "var(--foreground)",
-                    fontSize: "16px",
-                    padding: "14px 28px",
-                    fontWeight: "500",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    flex: "1 1 250px",
-                    minWidth: "200px",
-                  }}
-                  onClick={handleSevisPassLogin}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--accent)";
-                    e.currentTarget.style.borderColor = "var(--primary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = "var(--border)";
-                  }}
-                >
-                  Login with SevisPass
-                </button>
               </div>
             </div>
 
           </div>
         </section>
 
+
         <Footer />
       </div>
 
-      {/* SevisPass Login Modal */}
-      {showSevisLogin && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.8)",
-            backdropFilter: "blur(10px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px",
-          }}
-        >
-          <div
-            style={{
-              background: "var(--card)",
-              borderRadius: "20px",
-              padding: "40px",
-              maxWidth: "400px",
-              width: "100%",
-              textAlign: "center",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <h3
-              style={{
-                fontSize: "24px",
-                fontWeight: "600",
-                marginBottom: "8px",
-                color: "var(--foreground)",
-              }}
-            >
-              Login with SevisPass
-            </h3>
-            <p
-              style={{
-                fontSize: "14px",
-                color: "var(--muted-foreground)",
-                marginBottom: "32px",
-              }}
-            >
-              Enter your UIN for facial verification
-            </p>
-
-            <form onSubmit={handleUinSubmit}>
-              <input
-                type="text"
-                placeholder="Enter your UIN"
-                value={uin}
-                onChange={(e) => setUin(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "16px",
-                  border: "2px solid var(--border)",
-                  borderRadius: "12px",
-                  fontSize: "16px",
-                  marginBottom: "24px",
-                  background: "var(--input)",
-                  color: "var(--foreground)",
-                  outline: "none",
-                }}
-                required
-              />
-
-              <div style={{ display: "flex", gap: "12px" }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSevisLogin(false);
-                    setUin(""); // Clear UIN when canceling
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "14px",
-                    border: "2px solid var(--border)",
-                    borderRadius: "12px",
-                    background: "transparent",
-                    color: "var(--foreground)",
-                    fontSize: "16px",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--muted)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    flex: 1,
-                    padding: "14px",
-                    border: "none",
-                    borderRadius: "12px",
-                    background: "var(--primary)",
-                    color: "white",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = "0.9";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "1";
-                  }}
-                >
-                  Continue
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
