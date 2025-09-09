@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Error details:', {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : 'No stack trace',
-      applicationId
+      requestUrl: request.url
     });
     return NextResponse.json({
       error: 'Failed to fetch application documents',
