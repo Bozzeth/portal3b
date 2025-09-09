@@ -114,7 +114,7 @@ function CityPassStatusContent() {
         // Fetch user's CityPass application
         console.log('🔍 Looking for CityPass application for userId:', currentUser.userId);
         
-        const result = await client.models.CityPassApplication.list({
+        const result = await (client.models as any).CityPassApplication.list({
           filter: { userId: { eq: currentUser.userId } }
         });
 

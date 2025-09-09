@@ -40,7 +40,7 @@ function CityPassViewContent() {
       setUser(currentUser);
       
       // Check for CityPass holder record first
-      const holderResult = await client.models.CityPassHolder.list({
+      const holderResult = await (client.models as any).CityPassHolder.list({
         filter: { userId: { eq: currentUser.userId } }
       });
       
@@ -70,7 +70,7 @@ function CityPassViewContent() {
         setApplicationStatus('approved');
       } else {
         // Check for pending/rejected applications
-        const appResult = await client.models.CityPassApplication.list({
+        const appResult = await (client.models as any).CityPassApplication.list({
           filter: { userId: { eq: currentUser.userId } }
         });
         
