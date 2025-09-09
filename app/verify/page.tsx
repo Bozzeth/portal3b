@@ -45,13 +45,19 @@ export default function VerifyPage() {
 
     try {
       // Prepare the request payload
-      let payload: { uin?: string; qrData?: string } = {};
+      let payload: { uin?: string; qrData?: string; citypassId?: string } = {};
       
       if (qrInput.startsWith("{")) {
         // It's QR code data
         payload.qrData = qrInput;
+      } else if (qrInput.trim().startsWith("PNG")) {
+        // It's a UIN (starts with PNG)
+        payload.uin = qrInput.trim();
+      } else if (qrInput.trim().startsWith("CP") || qrInput.trim().includes("-")) {
+        // It's likely a CityPass ID (starts with CP or contains dashes)
+        payload.citypassId = qrInput.trim();
       } else {
-        // It's a UIN
+        // Try as UIN first, fallback to citypass ID
         payload.uin = qrInput.trim();
       }
 
@@ -148,12 +154,12 @@ export default function VerifyPage() {
                   height: '120px',
                   borderRadius: '12px',
                   overflow: 'hidden',
-                  border: '3px solid var(--primary)',
+                  border: `3px solid ${(verificationResult.data as any).type === 'citypass' ? '#FFD700' : 'var(--primary)'}`,
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                 }}>
                   <img 
                     src={(verificationResult.data as any).photoUrl}
-                    alt="SevisPass Photo"
+                    alt={(verificationResult.data as any).type === 'citypass' ? 'CityPass Photo' : 'SevisPass Photo'}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -193,29 +199,55 @@ export default function VerifyPage() {
                 </p>
               </div>
 
-              <div>
-                <h4
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "var(--muted-foreground)",
-                    marginBottom: "4px",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  UIN
-                </h4>
-                <p
-                  style={{
-                    fontSize: "16px",
-                    fontWeight: "500",
-                    margin: 0,
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {verificationResult.data.uin}
-                </p>
-              </div>
+              {(verificationResult.data as any).type === 'citypass' ? (
+                <div>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    CityPass ID
+                  </h4>
+                  <p
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: "500",
+                      margin: 0,
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {(verificationResult.data as any).id}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    UIN
+                  </h4>
+                  <p
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: "500",
+                      margin: 0,
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {verificationResult.data.uin}
+                  </p>
+                </div>
+              )}
 
               <div>
                 <h4
@@ -321,6 +353,25 @@ export default function VerifyPage() {
                 </div>
               )}
 
+              {(verificationResult.data as any).category && (
+                <div>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--muted-foreground)",
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Category
+                  </h4>
+                  <p style={{ fontSize: "14px", margin: 0 }}>
+                    {(verificationResult.data as any).category.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                  </p>
+                </div>
+              )}
+
               {(verificationResult.data as any).expires && (
                 <div>
                   <h4
@@ -356,7 +407,10 @@ export default function VerifyPage() {
               <p
                 style={{ margin: 0, fontSize: "14px", color: "var(--success)" }}
               >
-                This is a valid Papua New Guinea SevisPass digital identity.
+                {(verificationResult.data as any).type === 'citypass' 
+                  ? 'This is a valid Papua New Guinea CityPass resident credential.'
+                  : 'This is a valid Papua New Guinea SevisPass digital identity.'
+                }
               </p>
             </div>
           </div>
@@ -381,7 +435,7 @@ export default function VerifyPage() {
               }}
             >
               {verificationResult.error ||
-                "Invalid or corrupted SevisPass data."}
+                "Invalid or corrupted digital identity data."}
             </p>
           </div>
         )}
@@ -510,8 +564,7 @@ export default function VerifyPage() {
               margin: "0 auto",
             }}
           >
-            Verify SevisPass digital identities by scanning QR codes or entering
-            UIN numbers
+            Verify SevisPass digital identities and CityPass resident credentials by scanning QR codes or entering ID numbers
           </p>
         </div>
 
@@ -549,12 +602,12 @@ export default function VerifyPage() {
                 marginBottom: "8px",
               }}
             >
-              QR Code Data or UIN
+              QR Code Data, UIN, or CityPass ID
             </label>
             <textarea
               value={qrInput}
               onChange={(e) => setQrInput(e.target.value)}
-              placeholder="Paste QR code data (JSON format) or enter UIN (e.g., PNG1234567890)"
+              placeholder="Paste QR code data (JSON format), enter UIN (e.g., PNG1234567890), or CityPass ID"
               rows={4}
               style={{
                 width: "100%",
@@ -644,19 +697,23 @@ export default function VerifyPage() {
           <ul style={{ margin: 0, paddingLeft: "20px" }}>
             <li>
               <strong>QR Code:</strong> Copy and paste the full QR code data
-              from a SevisPass card
+              from a SevisPass or CityPass card
             </li>
             <li>
               <strong>UIN:</strong> Enter a 13-character UIN starting with "PNG"
-              (e.g., PNG1234567890)
+              (e.g., PNG1234567890) for SevisPass
+            </li>
+            <li>
+              <strong>CityPass ID:</strong> Enter the CityPass ID number for
+              Port Moresby resident credentials
             </li>
             <li>
               <strong>Mobile:</strong> Use your device camera to scan QR codes
               directly (coming soon)
             </li>
             <li>
-              <strong>Verification:</strong> Valid SevisPass cards show green
-              status with user details
+              <strong>Verification:</strong> Valid cards show green
+              status with user details and photos
             </li>
           </ul>
         </div>
@@ -683,8 +740,8 @@ export default function VerifyPage() {
             🔒 Real Database Verification
           </h4>
           <p style={{ marginBottom: "12px", color: "var(--muted-foreground)" }}>
-            This verification system connects to the official Papua New Guinea SevisPass database. 
-            Only valid, issued SevisPass identities will show as verified.
+            This verification system connects to the official Papua New Guinea SevisPass and CityPass databases. 
+            Only valid, issued digital identities and resident credentials will show as verified.
           </p>
           <div
             style={{
@@ -696,7 +753,7 @@ export default function VerifyPage() {
               color: "var(--success)",
             }}
           >
-            ✅ Connected to official SevisPass database<br />
+            ✅ Connected to official SevisPass and CityPass databases<br />
             ✅ Real-time verification status<br />
             ✅ Secure identity validation
           </div>

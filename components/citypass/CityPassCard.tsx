@@ -27,6 +27,7 @@ export function CityPassCard({ data, showActions = true }: CityPassCardProps) {
   
   // Generate QR code data for verification
   const qrData = JSON.stringify({
+    id: data.citypassId,
     citypassId: data.citypassId,
     name: data.fullName,
     category: data.category,
