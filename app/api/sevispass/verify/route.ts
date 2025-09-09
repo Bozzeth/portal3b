@@ -7,8 +7,6 @@ import { getUrl } from 'aws-amplify/storage';
 // Helper function to verify CityPass
 async function verifyCityPass(qrData: any) {
   try {
-    const { publicServerClient } = await import('@/lib/utils/amplifyServerUtils');
-    
     // Look up CityPass holder by CityPass ID
     const citypassId = qrData.id;
     if (!citypassId) {
@@ -23,7 +21,23 @@ async function verifyCityPass(qrData: any) {
 
     console.log('Verifying CityPass ID:', citypassId);
     
-    const holder = await publicServerClient.models.CityPassHolder.get({ citypassId });
+    // Import the client here to avoid TypeScript issues
+    const { publicServerClient } = await import('@/lib/utils/amplifyServerUtils');
+    
+    // Check if CityPassHolder model exists
+    if (!(publicServerClient.models as any).CityPassHolder) {
+      console.error('CityPassHolder model not available in Amplify schema');
+      return NextResponse.json({
+        success: false,
+        verification: {
+          valid: false,
+          error: 'CityPass verification temporarily unavailable - database schema not deployed'
+        }
+      }, { status: 503 });
+    }
+    
+    // Use type assertion to avoid TypeScript compilation error
+    const holder = await (publicServerClient.models as any).CityPassHolder.get({ citypassId });
     
     if (!holder.data) {
       console.log('No CityPass holder found for ID:', citypassId);
@@ -197,7 +211,7 @@ export async function POST(req: NextRequest) {
     let holder;
     try {
       const { publicServerClient } = await import('@/lib/utils/amplifyServerUtils');
-      holder = await publicServerClient.models.SevisPassHolder.get({ uin: targetUin });
+      holder = await (publicServerClient.models as any).SevisPassHolder.get({ uin: targetUin });
           
       if (!holder.data) {
         console.log('No SevisPass holder found for UIN:', targetUin);
