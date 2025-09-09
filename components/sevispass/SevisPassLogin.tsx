@@ -90,43 +90,98 @@ export function SevisPassLogin({ onSuccess, onCancel }: SevisPassLoginProps) {
     setStep('processing');
 
     try {
-      // TODO: Integrate with AWS Rekognition
-      // 1. Face liveness detection
-      // 2. Search face in Rekognition collection using UIN as ExternalImageId
-      // 3. Compare confidence scores
+      console.log('🔐 Starting SevisPass login verification for UIN:', uin);
       
-      console.log('Verifying face for UIN:', uin);
-      
-      // Simulate API processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Mock verification - in reality this would query AWS Rekognition collection
-      const mockUsers = [
-        { uin: 'PNG1234567890', fullName: 'John Doe', active: true },
-        { uin: 'PNG0987654321', fullName: 'Jane Smith', active: true },
-      ];
-      
-      const user = mockUsers.find(u => u.uin === uin.toUpperCase() && u.active);
-      
-      if (user) {
-        // Mock face match confidence (in reality this comes from Rekognition)
-        const confidence = Math.random() * 100;
+      // Call the real SevisPass login API
+      const response = await fetch('/api/sevispass/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uin: uin.toUpperCase(),
+          selfieImage: faceImageData
+        }),
+      });
+
+      const result = await response.json();
+      console.log('🔍 Login API response:', result);
+
+      if (result.success && result.authenticated) {
+        // Success - user verified
+        console.log('✅ SevisPass facial verification successful:', result.user);
         
-        if (confidence >= 85) { // Threshold for login
-          setUserData(user);
-          setStep('success');
-          onSuccess?.(user);
-        } else {
-          setError('Face verification failed. Please try again.');
-          setStep('failed');
+        const userData = {
+          uin: result.user.uin,
+          fullName: result.user.fullName || 'SevisPass User',
+          cognitoUserId: result.user.cognitoUserId
+        };
+        
+        setUserData(userData);
+        setStep('success');
+        
+        // Attempt Cognito authentication with the login token
+        console.log('🔐 Attempting Cognito authentication...');
+        try {
+          const cognitoResponse = await fetch('/api/sevispass/complete-cognito-auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ loginToken: result.user.loginToken })
+          });
+
+          if (cognitoResponse.ok) {
+            const { userData: cognitoUserData } = await cognitoResponse.json();
+            console.log('✅ Cognito user data retrieved:', cognitoUserData);
+            
+            // Try to sign in with Cognito using adminSetUserPassword flow
+            // This creates a proper Cognito session
+            const { signIn } = await import('aws-amplify/auth');
+            
+            try {
+              // First, try to sign in assuming the user exists
+              const signInResult = await signIn({
+                username: cognitoUserData.email,
+                password: 'SevisPass-TempAuth-' + result.user.loginToken.substring(0, 8)
+              });
+              
+              if (signInResult.isSignedIn) {
+                console.log('✅ Cognito sign-in successful');
+                onSuccess?.(userData);
+                return;
+              }
+            } catch (signInError: any) {
+              console.log('🔄 Cognito sign-in failed, user may not exist:', signInError.message);
+              // User doesn't exist or password is wrong, create temporary session
+            }
+          }
+        } catch (cognitoError) {
+          console.warn('⚠️ Cognito authentication failed, falling back to session storage:', cognitoError);
+        }
+
+        // Fallback: Create SevisPass session for non-Cognito flows  
+        console.log('🔄 Creating SevisPass session fallback...');
+        if (typeof window !== 'undefined') {
+          // Import auth service dynamically to avoid SSR issues
+          import('@/lib/services/sevispass-auth-service').then(({ createSevisPassSession }) => {
+            createSevisPassSession({
+              cognitoUserId: result.user.cognitoUserId,
+              uin: result.user.uin,
+              userFullName: result.user.fullName
+            });
+            
+            console.log('✅ SevisPass session fallback created');
+            onSuccess?.(userData);
+          });
         }
       } else {
-        setError('UIN not found or account is inactive. Please register for SevisPass first.');
+        // Authentication failed
+        console.log('❌ SevisPass login failed:', result.error);
+        setError(result.error || 'Face verification failed. Please ensure your face matches your registered SevisPass profile and try again.');
         setStep('failed');
       }
     } catch (err: any) {
-      console.error('Face verification error:', err);
-      setError('Verification failed. Please try again.');
+      console.error('❌ SevisPass login error:', err);
+      setError('Unable to connect to verification service. Please check your internet connection and try again.');
       setStep('failed');
     } finally {
       setLoading(false);

@@ -256,7 +256,6 @@ function CityPassApplicationContent() {
           allData: applicationData
         });
         result = await (client.models as any).CityPassApplication.update({
-          userId: user.userId,
           ...applicationData
         });
       } else {
