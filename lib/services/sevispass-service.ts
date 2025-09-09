@@ -262,18 +262,36 @@ export class SevisPassService {
 
       const holder = holders[0];
       
-      // Get photo URL from S3
+      // Get photo URL from S3 with better error handling
       let photoUrl = undefined;
       if (holder.photoImageKey && typeof holder.photoImageKey === 'string') {
         try {
+          console.log('🖼️ Generating photo URL for key:', holder.photoImageKey);
           // Use direct getUrl without server context
           const urlResult = await getUrl({
-            path: holder.photoImageKey as string
+            path: holder.photoImageKey as string,
+            options: {
+              expiresIn: 3600, // 1 hour expiration
+              contentType: 'image/jpeg'
+            }
           });
           photoUrl = urlResult.url.toString();
+          console.log('✅ Photo URL generated successfully:', photoUrl.substring(0, 100) + '...');
         } catch (error) {
-          console.error('Error getting photo URL:', error);
+          console.error('❌ Error getting photo URL for key:', holder.photoImageKey, error);
+          // Try without options as fallback
+          try {
+            const fallbackResult = await getUrl({
+              path: holder.photoImageKey as string
+            });
+            photoUrl = fallbackResult.url.toString();
+            console.log('✅ Fallback photo URL generated:', photoUrl.substring(0, 100) + '...');
+          } catch (fallbackError) {
+            console.error('❌ Fallback photo URL generation also failed:', fallbackError);
+          }
         }
+      } else {
+        console.log('⚠️ No photoImageKey found or invalid key type:', holder.photoImageKey);
       }
 
       return {

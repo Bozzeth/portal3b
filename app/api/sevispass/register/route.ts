@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
           console.log("AI extraction failed - no data extracted");
         }
 
-        // Validate that we have minimum required data
+        // Validate that we have minimum required data - STRICT VALIDATION
         if (!extractedInfo.fullName) {
           console.log("⚠️  No name extracted from document");
           // Use applicant info as fallback only if provided
@@ -120,26 +120,57 @@ export async function POST(req: NextRequest) {
             // Reject if no name available
             return {
               success: false,
-              error: "Unable to extract name from document. Please ensure document is clear and readable.",
+              error: "Unable to extract name from document. Please ensure your document is clear and readable, or provide your full name manually.",
               message: "Document analysis failed - name not found"
             };
           }
         }
 
-        if (!extractedInfo.dateOfBirth && applicantInfo.dateOfBirth) {
-          extractedInfo.dateOfBirth = applicantInfo.dateOfBirth;
-          console.log("Using provided applicant DOB:", applicantInfo.dateOfBirth);
+        // Enhanced date of birth validation with user fallback
+        if (!extractedInfo.dateOfBirth) {
+          console.log("⚠️ No date of birth extracted from document");
+          
+          // Check if user provided date of birth as fallback
+          if (applicantInfo.dateOfBirth) {
+            console.log("📅 Using user-provided date of birth:", applicantInfo.dateOfBirth);
+            extractedInfo.dateOfBirth = applicantInfo.dateOfBirth;
+          } else {
+            console.log("❌ No date of birth available from document or user");
+            return {
+              success: false,
+              error: "Date of birth could not be extracted from your document and was not provided. Please ensure your document shows the date of birth clearly, or provide your date of birth manually in the application form.",
+              message: "Document analysis failed - date of birth required",
+              requiresManualInput: true // Flag to indicate user should provide DOB manually
+            };
+          }
+        } else {
+          console.log("✅ Date of birth successfully extracted:", extractedInfo.dateOfBirth);
         }
         
-        // Final fallback for DOB if still empty (to prevent database validation errors)
-        if (!extractedInfo.dateOfBirth) {
-          extractedInfo.dateOfBirth = '1981-10-09'; // Use DOB visible in passport: "09 OCT 1981"
-          console.log("Using fallback DOB from passport text:", extractedInfo.dateOfBirth);
+        // Validate date format and reasonableness
+        if (extractedInfo.dateOfBirth) {
+          const dobDate = new Date(extractedInfo.dateOfBirth);
+          const currentYear = new Date().getFullYear();
+          const birthYear = dobDate.getFullYear();
+          
+          if (isNaN(dobDate.getTime()) || birthYear < 1900 || birthYear > currentYear - 5) {
+            console.log("❌ Invalid date of birth format or unreasonable date:", extractedInfo.dateOfBirth);
+            return {
+              success: false,
+              error: "The extracted or provided date of birth appears to be invalid. Please check the date format and ensure it's a reasonable birth date.",
+              message: "Invalid date of birth"
+            };
+          }
         }
 
+        // STRICT DOCUMENT NUMBER VALIDATION - NO FALLBACK
         if (!extractedInfo.documentNumber) {
-          extractedInfo.documentNumber = `DOC${Date.now()}`;
-          console.log("Generated fallback document number");
+          console.log("❌ No document number available - rejecting application");
+          return {
+            success: false,
+            error: "Document number could not be extracted from your document. Please ensure your document is clear and readable.",
+            message: "Document analysis failed - document number required"
+          };
         }
 
         // Generate application ID

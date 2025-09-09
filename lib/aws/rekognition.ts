@@ -1056,28 +1056,128 @@ export async function analyzeIdentityDocument(
       }
     }
 
-    // Extract date of birth
+    // Enhanced date of birth extraction for PNG passports
     if (!extractedData.dateOfBirth) {
+      console.log('🔍 Searching for date of birth in extracted text...');
+      console.log('📄 Full text for DOB search:', allText);
+      
       const datePatterns = [
-        /Date\s*of\s*Birth[:\s]+(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i,
-        /DOB[:\s]+(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i,
-        /Born[:\s]+(\d{1,2}[-/]\d{1,2}[-/]\d{4})/i,
-        /(\d{1,2}[-/]\d{1,2}[-/]\d{4})/g
+        // PNG passport format: DD MMM YYYY (e.g., "09 OCT 1981") - HIGHEST PRIORITY
+        /(\d{1,2}\s+(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+\d{4})/gi,
+        
+        // Standard formats with labels
+        /Date\s*of\s*Birth[:\s]+(\d{1,2}[-/.\s]\d{1,2}[-/.\s]\d{4})/i,
+        /DOB[:\s]+(\d{1,2}[-/.\s]\d{1,2}[-/.\s]\d{4})/i,
+        /Born[:\s]+(\d{1,2}[-/.\s]\d{1,2}[-/.\s]\d{4})/i,
+        /Birth[:\s]+(\d{1,2}[-/.\s]\d{1,2}[-/.\s]\d{4})/i,
+        
+        // Alternative month names (full)
+        /(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/gi,
+        
+        // Various date formats without labels
+        /(\d{1,2}[-/.\s]\d{1,2}[-/.\s]\d{4})/g,
+        /(\d{4}[-/.\s]\d{1,2}[-/.\s]\d{1,2})/g, // YYYY-MM-DD format
       ];
 
       for (const pattern of datePatterns) {
-        const match = allText.match(pattern);
-        if (match) {
-          const dateStr = match[1];
-          // Convert to YYYY-MM-DD format
-          const dateParts = dateStr.split(/[-/]/);
-          if (dateParts.length === 3) {
-            const [day, month, year] = dateParts;
-            extractedData.dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-            console.log('Date of birth found:', extractedData.dateOfBirth);
-            break;
-          }
+        let matches;
+        
+        // Handle global vs non-global patterns differently
+        if (pattern.global) {
+          matches = allText.match(pattern);
+        } else {
+          const singleMatch = allText.match(pattern);
+          matches = singleMatch ? [singleMatch[1]] : null; // Extract capture group
         }
+        
+        if (matches) {
+          console.log('🔍 Pattern matches found:', matches);
+          
+          for (const match of matches) {
+            let dateStr = match;
+            console.log('🗓️ Found potential date:', dateStr);
+            
+            // Handle different date formats
+            if (dateStr.includes('JAN') || dateStr.includes('FEB') || dateStr.includes('MAR') || 
+                dateStr.includes('APR') || dateStr.includes('MAY') || dateStr.includes('JUN') ||
+                dateStr.includes('JUL') || dateStr.includes('AUG') || dateStr.includes('SEP') ||
+                dateStr.includes('OCT') || dateStr.includes('NOV') || dateStr.includes('DEC') ||
+                dateStr.includes('January') || dateStr.includes('February') || dateStr.includes('March') ||
+                dateStr.includes('April') || dateStr.includes('May') || dateStr.includes('June') ||
+                dateStr.includes('July') || dateStr.includes('August') || dateStr.includes('September') ||
+                dateStr.includes('October') || dateStr.includes('November') || dateStr.includes('December')) {
+              
+              // Handle "DD MMM YYYY" or "DD Month YYYY" format
+              const monthMap: { [key: string]: string } = {
+                'JAN': '01', 'JANUARY': '01',
+                'FEB': '02', 'FEBRUARY': '02',
+                'MAR': '03', 'MARCH': '03',
+                'APR': '04', 'APRIL': '04',
+                'MAY': '05',
+                'JUN': '06', 'JUNE': '06',
+                'JUL': '07', 'JULY': '07',
+                'AUG': '08', 'AUGUST': '08',
+                'SEP': '09', 'SEPTEMBER': '09',
+                'OCT': '10', 'OCTOBER': '10',
+                'NOV': '11', 'NOVEMBER': '11',
+                'DEC': '12', 'DECEMBER': '12'
+              };
+              
+              const parts = dateStr.trim().split(/\s+/);
+              if (parts.length === 3) {
+                const day = parts[0].padStart(2, '0');
+                const month = monthMap[parts[1].toUpperCase()];
+                const year = parts[2];
+                
+                if (month && year.length === 4) {
+                  const yearNum = parseInt(year);
+                  // Validate year range (reasonable birth years)
+                  if (yearNum >= 1900 && yearNum <= new Date().getFullYear() - 5) {
+                    extractedData.dateOfBirth = `${year}-${month}-${day}`;
+                    console.log('✅ Date of birth extracted (MMM format):', extractedData.dateOfBirth);
+                    break;
+                  }
+                }
+              }
+            } else {
+              // Handle DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD formats
+              const dateParts = dateStr.split(/[-/.\s]/);
+              if (dateParts.length === 3) {
+                let day, month, year;
+                
+                // Determine format based on which part is likely the year
+                if (dateParts[0].length === 4) {
+                  // YYYY-MM-DD format
+                  year = dateParts[0];
+                  month = dateParts[1];
+                  day = dateParts[2];
+                } else if (dateParts[2].length === 4) {
+                  // DD/MM/YYYY or MM/DD/YYYY format
+                  year = dateParts[2];
+                  // Assume DD/MM/YYYY for PNG documents
+                  day = dateParts[0];
+                  month = dateParts[1];
+                } else {
+                  continue; // Skip invalid formats
+                }
+                
+                // Validate year range (reasonable birth years)
+                const yearNum = parseInt(year);
+                if (yearNum >= 1900 && yearNum <= new Date().getFullYear() - 5) {
+                  extractedData.dateOfBirth = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                  console.log('✅ Date of birth extracted (numeric format):', extractedData.dateOfBirth);
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (extractedData.dateOfBirth) break;
+        }
+      }
+      
+      if (!extractedData.dateOfBirth) {
+        console.log('❌ No date of birth found in text');
       }
     }
 

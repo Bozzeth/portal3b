@@ -72,10 +72,14 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
       // Wait a moment for styles to apply
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Capture the card as canvas
+      // Capture the card as canvas with better image handling
       const canvas = await html2canvas(cardRef.current, {
         useCORS: true,
-        allowTaint: true
+        allowTaint: true,
+        foreignObjectRendering: true,
+        logging: false,
+        scale: 2, // Higher resolution
+        backgroundColor: null // Preserve transparency
       } as any);
       
       // Restore action buttons
@@ -126,10 +130,14 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
       // Wait a moment for styles to apply
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Capture the card as canvas
+      // Capture the card as canvas with better image handling
       const canvas = await html2canvas(cardRef.current, {
         useCORS: true,
-        allowTaint: true
+        allowTaint: true,
+        foreignObjectRendering: true,
+        logging: false,
+        scale: 2, // Higher resolution
+        backgroundColor: null // Preserve transparency
       } as any);
       
       // Restore action buttons
@@ -309,6 +317,7 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
                 <img 
                   src={data.photo} 
                   alt="Profile Photo"
+                  crossOrigin="anonymous"
                   style={{
                     width: '100%',
                     height: '100%',
@@ -316,11 +325,20 @@ export function SevisPassCard({ data, showActions = true }: SevisPassCardProps) 
                     borderRadius: '9px'
                   }}
                   onError={(e) => {
+                    console.log('Photo failed to load:', data.photo);
                     e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement!.innerHTML = '👤';
+                    const parent = e.currentTarget.parentElement!;
+                    parent.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 32px;">👤</div>';
+                  }}
+                  onLoad={() => {
+                    console.log('Photo loaded successfully:', data.photo);
                   }}
                 />
-              ) : '👤'}
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', fontSize: '32px' }}>
+                  👤
+                </div>
+              )}
             </div>
             
             {showDetails ? (
