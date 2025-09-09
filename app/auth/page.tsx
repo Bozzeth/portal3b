@@ -126,40 +126,6 @@ export default function AuthPage() {
             {/* Auth Component */}
             <CustomAuth onSuccess={() => router.push('/dashboard')} />
 
-            {/* SevisPass Options */}
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button
-                onClick={() => router.push('/sevispass/login')}
-                style={{ 
-                  background: 'var(--primary)', 
-                  border: 'none',
-                  color: 'white',
-                  fontSize: '16px',
-                  padding: '16px 24px',
-                  fontWeight: '600',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  width: '100%',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-                }}
-              >
-                🔐 Login with SevisPass
-              </button>
-
-            </div>
 
             {/* Footer */}
             <div style={{ textAlign: 'center' }}>
