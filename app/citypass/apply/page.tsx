@@ -202,7 +202,7 @@ function CityPassApplicationContent() {
     try {
       // Check if user already has an application FIRST
       console.log('Checking for existing CityPass application...');
-      const existingResult = await client.models.CityPassApplication.list({
+      const existingResult = await (client.models as any).CityPassApplication.list({
         filter: { userId: { eq: user.userId } }
       });
 
@@ -255,7 +255,7 @@ function CityPassApplicationContent() {
           documentKeysToSave: applicationData.supportingDocumentKeys,
           allData: applicationData
         });
-        result = await client.models.CityPassApplication.update({
+        result = await (client.models as any).CityPassApplication.update({
           userId: user.userId,
           ...applicationData
         });
@@ -266,7 +266,7 @@ function CityPassApplicationContent() {
           documentKeysToSave: applicationData.supportingDocumentKeys,
           allData: applicationData
         });
-        result = await client.models.CityPassApplication.create(applicationData);
+        result = await (client.models as any).CityPassApplication.create(applicationData);
       }
 
       if (result.errors && result.errors.length > 0) {

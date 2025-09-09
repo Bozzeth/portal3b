@@ -104,7 +104,7 @@ function CityPassContent() {
         setSevisPassData(sevisResult.sevisPassData);
 
         // Check for existing CityPass application
-        const result = await client.models.CityPassApplication.list({
+        const result = await (client.models as any).CityPassApplication.list({
           filter: { userId: { eq: currentUser.userId } }
         });
 
