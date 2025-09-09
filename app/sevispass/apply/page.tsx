@@ -183,41 +183,85 @@ function SevisPassContent() {
         </div>
       </div>
 
-      {/* Apply Action */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center',
-        marginBottom: '32px'
+      {/* Process Overview Card */}
+      <div style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: '12px',
+        padding: '32px',
+        marginBottom: '32px',
+        textAlign: 'center'
       }}>
-        <div style={{
-          background: 'var(--primary)',
-          borderRadius: '16px',
-          padding: '32px',
-          color: 'white',
-          cursor: 'pointer',
-          transition: 'transform 0.2s ease',
-          boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
-          maxWidth: '400px',
-          width: '100%',
-          textAlign: 'center'
-        }}
-        onClick={() => setCurrentView('register')}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-        >
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
-          <h3 style={{ fontSize: '24px', fontWeight: '600', margin: '0 0 12px 0' }}>
-            Start Your Application
-          </h3>
-          <p style={{ fontSize: '16px', opacity: 0.9, marginBottom: '20px', lineHeight: '1.5' }}>
-            Begin your SevisPass registration process with document verification and facial recognition setup.
-          </p>
-          <div style={{ fontSize: '14px', opacity: 0.8 }}>
-            ✓ Document verification<br/>
-            ✓ Facial recognition setup<br/>
-            ✓ UIN generation
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+        <h3 style={{ fontSize: '24px', fontWeight: '600', margin: '0 0 12px 0' }}>
+          SevisPass Registration Process
+        </h3>
+        <p style={{ color: 'var(--muted-foreground)', fontSize: '16px', marginBottom: '24px', lineHeight: '1.5' }}>
+          Complete your digital identity verification in three simple steps
+        </p>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '16px',
+          marginBottom: '32px',
+          fontSize: '14px'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>📄</div>
+            <strong>Document Upload</strong>
+            <p style={{ color: 'var(--muted-foreground)', margin: '4px 0 0 0' }}>Upload your ID document</p>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>📸</div>
+            <strong>Facial Verification</strong>
+            <p style={{ color: 'var(--muted-foreground)', margin: '4px 0 0 0' }}>Take a verification selfie</p>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>✅</div>
+            <strong>UIN Generation</strong>
+            <p style={{ color: 'var(--muted-foreground)', margin: '4px 0 0 0' }}>Receive your digital ID</p>
           </div>
         </div>
+        
+        {/* Prominent Call-to-Action Button */}
+        <button
+          onClick={() => setCurrentView('register')}
+          style={{
+            background: 'linear-gradient(135deg, var(--primary) 0%, #2563eb 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            padding: '16px 32px',
+            fontSize: '18px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            margin: '0 auto',
+            minWidth: '200px'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'translateY(1px)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+        >
+          <span>Start Your Application</span>
+          <span style={{ fontSize: '16px' }}>→</span>
+        </button>
       </div>
 
       {/* Requirements */}
