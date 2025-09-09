@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       });
       console.log('📊 Broader search result:', {
         foundApps: broadResult.data?.length || 0,
-        applicationIds: broadResult.data?.map(app => app.applicationId) || []
+        applicationIds: broadResult.data?.map((app: any) => app.applicationId) || []
       });
       
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
