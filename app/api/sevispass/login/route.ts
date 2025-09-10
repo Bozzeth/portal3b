@@ -29,8 +29,8 @@ function storeLoginToken(token: string, userId: string, uin: string): void {
   console.log(`🔐 Stored login token for user ${userId}, expires in 10 minutes`);
 }
 
-// Verify and consume login token (one-time use)
-export function verifyLoginToken(token: string): { userId: string; uin: string } | null {
+// Verify and consume login token (one-time use) - removed export for Next.js compatibility
+function verifyLoginToken(token: string): { userId: string; uin: string } | null {
   const data = loginTokenStore.get(token);
   if (!data || data.expiresAt < Date.now()) {
     loginTokenStore.delete(token);
