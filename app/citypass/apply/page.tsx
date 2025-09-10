@@ -3,20 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser } from 'aws-amplify/auth';
-import { generateClient } from 'aws-amplify/data';
 import { uploadData } from 'aws-amplify/storage';
 import { Amplify } from 'aws-amplify';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { LogoInline } from '@/components/ui/Logo';
 import { ArrowLeft, Upload, FileText, AlertCircle } from 'lucide-react';
-import type { Schema } from '@/amplify/data/resource';
 import outputs from '@/amplify_outputs.json';
 
 // Ensure Amplify is configured
 Amplify.configure(outputs);
-
-const client = generateClient<Schema>();
 
 interface SevisPassData {
   uin: string;
@@ -205,109 +201,51 @@ function CityPassApplicationContent() {
     setError('');
 
     try {
-      // Check if user already has an application FIRST
-      console.log('Checking for existing CityPass application...');
-      console.log('Client debug:', { 
-        client: !!client, 
-        models: !!client?.models, 
-        CityPassApplication: !!(client?.models as any)?.CityPassApplication,
-        hasClient: client !== undefined,
-        clientType: typeof client
-      });
-      
-      if (!client) {
-        throw new Error('Amplify client not initialized');
-      }
-      
-      if (!client.models) {
-        throw new Error('Amplify client models not available');
-      }
-      
-      if (!(client.models as any).CityPassApplication) {
-        throw new Error('CityPassApplication model not found in schema');
-      }
-      
-      const existingResult = await (client.models as any).CityPassApplication.list({
-        filter: { userId: { eq: user.userId } }
-      });
-
-      const existingApp = existingResult.data && existingResult.data.length > 0 ? existingResult.data[0] : null;
-      
-      // Use existing applicationId if resubmitting, otherwise generate new one
-      const applicationId = existingApp?.applicationId || `CP${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-      console.log('📝 Using applicationId:', applicationId, existingApp ? '(reusing existing)' : '(newly generated)');
-
-      // Upload supporting documents
+      // Upload supporting documents first
       console.log('Uploading supporting documents...', supportingFiles?.length || 0, 'files');
-      const documentKeys = await uploadSupportingDocuments(applicationId);
+      const documentKeys = await uploadSupportingDocuments(`CP${Date.now()}`);
       console.log('📄 Uploaded document keys:', documentKeys);
       
-      // Prepare application data
+      // Prepare application data for API
       const applicationData = {
         userId: user.userId,
-        applicationId: applicationId,
-        status: 'pending' as const,
-        submittedAt: new Date().toISOString(),
-        category: selectedCategory as any,
+        category: selectedCategory,
         fullName: sevisPassData.fullName,
         sevispassUin: sevisPassData.uin,
         phoneNumber: formData.phoneNumber,
         email: user.signInDetails?.loginId || '',
-        supportingDocumentKeys: JSON.stringify(documentKeys),
-        documentType: getCategoryDocumentType(selectedCategory),
-        employerName: formData.employerName || undefined,
-        schoolName: formData.schoolName || undefined,
-        propertyAddress: formData.propertyAddress || undefined,
-        businessName: formData.businessName || undefined,
-        voucherUin: formData.voucherUin || undefined,
-        relationshipToVoucher: formData.relationshipToVoucher || undefined,
+        supportingDocuments: documentKeys,
+        employerName: formData.employerName,
+        schoolName: formData.schoolName,
+        propertyAddress: formData.propertyAddress,
+        businessName: formData.businessName,
+        voucherUin: formData.voucherUin,
+        relationshipToVoucher: formData.relationshipToVoucher,
       };
 
-      let result;
+      console.log('Submitting CityPass application via API...');
       
-      if (existingApp) {
-        // Check if resubmission is allowed
-        if (existingApp.status === 'pending' || existingApp.status === 'under_review') {
-          throw new Error('You already have a pending CityPass application. Please wait for review to complete before resubmitting.');
-        } else if (existingApp.status === 'approved') {
-          throw new Error('You already have an approved CityPass application. Multiple applications are not allowed.');
-        }
-        
-        // Update existing rejected application
-        console.log('Updating existing rejected CityPass application...');
-        console.log('📝 Update data:', {
-          userId: user.userId,
-          documentKeysToSave: applicationData.supportingDocumentKeys,
-          allData: applicationData
-        });
-        if (!client?.models || !(client.models as any).CityPassApplication) {
-          throw new Error('CityPassApplication model not available for update');
-        }
-        result = await (client.models as any).CityPassApplication.update({
-          ...applicationData
-        });
-      } else {
-        // Create new application
-        console.log('Creating new CityPass application...');
-        console.log('📝 Create data:', {
-          documentKeysToSave: applicationData.supportingDocumentKeys,
-          allData: applicationData
-        });
-        if (!client?.models || !(client.models as any).CityPassApplication) {
-          throw new Error('CityPassApplication model not available for create');
-        }
-        result = await (client.models as any).CityPassApplication.create(applicationData);
-      }
-
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(`Failed to submit application: ${result.errors[0].message}`);
-      }
-
-      console.log('✅ CityPass application submitted successfully');
-      console.log('💾 Saved application result:', {
-        data: result.data,
-        savedDocumentKeys: result.data?.supportingDocumentKeys
+      // Call the CityPass application API
+      const response = await fetch('/api/citypass/apply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(applicationData),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit application');
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Application submission failed');
+      }
+
+      console.log('✅ CityPass application submitted successfully via API');
+      console.log('💾 Application result:', result);
       
       // Redirect to CityPass landing page which will show the status
       router.push('/citypass?submitted=true');
