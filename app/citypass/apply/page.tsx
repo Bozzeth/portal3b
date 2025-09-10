@@ -16,7 +16,9 @@ import outputs from '@/amplify_outputs.json';
 // Ensure Amplify is configured
 Amplify.configure(outputs);
 
-const client = generateClient<Schema>();
+const client = generateClient<Schema>({
+  authMode: 'apiKey'
+});
 
 interface SevisPassData {
   uin: string;
@@ -210,6 +212,7 @@ function CityPassApplicationContent() {
       console.log('Client debug:', { 
         client: !!client, 
         models: !!client?.models, 
+        availableModels: client?.models ? Object.keys(client.models) : [],
         CityPassApplication: !!(client?.models as any)?.CityPassApplication,
         hasClient: client !== undefined,
         clientType: typeof client
