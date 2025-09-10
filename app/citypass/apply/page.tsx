@@ -5,11 +5,16 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
 import { uploadData } from 'aws-amplify/storage';
+import { Amplify } from 'aws-amplify';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { LogoInline } from '@/components/ui/Logo';
 import { ArrowLeft, Upload, FileText, AlertCircle } from 'lucide-react';
 import type { Schema } from '@/amplify/data/resource';
+import outputs from '@/amplify_outputs.json';
+
+// Ensure Amplify is configured
+Amplify.configure(outputs);
 
 const client = generateClient<Schema>();
 
@@ -202,6 +207,26 @@ function CityPassApplicationContent() {
     try {
       // Check if user already has an application FIRST
       console.log('Checking for existing CityPass application...');
+      console.log('Client debug:', { 
+        client: !!client, 
+        models: !!client?.models, 
+        CityPassApplication: !!client?.models?.CityPassApplication,
+        hasClient: client !== undefined,
+        clientType: typeof client
+      });
+      
+      if (!client) {
+        throw new Error('Amplify client not initialized');
+      }
+      
+      if (!client.models) {
+        throw new Error('Amplify client models not available');
+      }
+      
+      if (!(client.models as any).CityPassApplication) {
+        throw new Error('CityPassApplication model not found in schema');
+      }
+      
       const existingResult = await (client.models as any).CityPassApplication.list({
         filter: { userId: { eq: user.userId } }
       });
@@ -255,6 +280,9 @@ function CityPassApplicationContent() {
           documentKeysToSave: applicationData.supportingDocumentKeys,
           allData: applicationData
         });
+        if (!client?.models || !(client.models as any).CityPassApplication) {
+          throw new Error('CityPassApplication model not available for update');
+        }
         result = await (client.models as any).CityPassApplication.update({
           ...applicationData
         });
@@ -265,6 +293,9 @@ function CityPassApplicationContent() {
           documentKeysToSave: applicationData.supportingDocumentKeys,
           allData: applicationData
         });
+        if (!client?.models || !(client.models as any).CityPassApplication) {
+          throw new Error('CityPassApplication model not available for create');
+        }
         result = await (client.models as any).CityPassApplication.create(applicationData);
       }
 
