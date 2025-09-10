@@ -210,7 +210,7 @@ function CityPassApplicationContent() {
       console.log('Client debug:', { 
         client: !!client, 
         models: !!client?.models, 
-        CityPassApplication: !!client?.models?.CityPassApplication,
+        CityPassApplication: !!(client?.models as any)?.CityPassApplication,
         hasClient: client !== undefined,
         clientType: typeof client
       });
