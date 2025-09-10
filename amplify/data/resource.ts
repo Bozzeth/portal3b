@@ -74,6 +74,70 @@ const schema = a.schema({
       allow.group('DICT_OFFICER').to(['read', 'create'])
     ])
     .identifier(['uin']),
+
+  CityPassApplication: a
+    .model({
+      userId: a.string().required(),
+      applicationId: a.string().required(), 
+      status: a.enum(['pending', 'under_review', 'approved', 'rejected']),
+      submittedAt: a.datetime().required(),
+      category: a.enum(['employed', 'student', 'property_owner', 'business_owner', 'dependent', 'vouched']),
+      
+      // Applicant information (from SevisPass)
+      fullName: a.string().required(),
+      sevispassUin: a.string().required(),
+      phoneNumber: a.string(),
+      email: a.string(),
+      
+      // Supporting documents
+      supportingDocumentKeys: a.string(), // JSON array of S3 keys
+      documentType: a.string(), // Employment letter, student ID, property deed, etc.
+      
+      // Category-specific information
+      employerName: a.string(),
+      schoolName: a.string(), 
+      propertyAddress: a.string(),
+      businessName: a.string(),
+      voucherUin: a.string(), // UIN of person vouching
+      relationshipToVoucher: a.string(),
+      
+      // Review and approval data
+      reviewNotes: a.string(),
+      rejectionReason: a.string(),
+      reviewedBy: a.string(), // Admin who reviewed
+      reviewedAt: a.datetime(),
+      
+      // CityPass issuance data
+      citypassId: a.string(), // Generated after approval
+      issuedAt: a.datetime(),
+    })
+    .authorization((allow) => [
+      allow.authenticated().to(['create', 'read']),
+      allow.owner().to(['create', 'read', 'update']),
+      allow.group('ADMIN').to(['read', 'update', 'create'])
+    ])
+    .identifier(['userId']),
+
+  CityPassHolder: a
+    .model({
+      userId: a.string().required(),
+      citypassId: a.string().required(),
+      fullName: a.string().required(),
+      sevispassUin: a.string().required(),
+      category: a.enum(['employed', 'student', 'property_owner', 'business_owner', 'dependent', 'vouched']),
+      issuedAt: a.datetime().required(),
+      expiryDate: a.datetime(),
+      status: a.enum(['active', 'suspended', 'revoked']),
+      photoImageKey: a.string(), // S3 key for photo (from SevisPass)
+      qrCodeData: a.string(), // QR code content for verification
+    })
+    .authorization((allow) => [
+      allow.authenticated().to(['read']),
+      allow.owner().to(['read']),
+      allow.group('ADMIN').to(['read', 'update', 'create']),
+      allow.publicApiKey().to(['read']) // For verification service
+    ])
+    .identifier(['citypassId']),
 });
 
 export type Schema = ClientSchema<typeof schema>;
