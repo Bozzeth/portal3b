@@ -15,6 +15,17 @@ export const storage = defineStorage({
       allow.authenticated.to(['read', 'write', 'delete']),
       allow.groups(['ADMIN', 'DICT_OFFICER']).to(['read', 'write', 'delete'])
     ],
+    // CityPass application documents
+    'public/citypass/applications/*': [
+      allow.guest.to(['read', 'write']),
+      allow.authenticated.to(['read', 'write']),
+      allow.groups(['ADMIN', 'CITYPASS_ADMIN']).to(['read', 'write', 'delete'])
+    ],
+    // CityPass holder documents
+    'public/citypass/holders/*': [
+      allow.authenticated.to(['read']),
+      allow.groups(['ADMIN', 'CITYPASS_ADMIN']).to(['read', 'write', 'delete'])
+    ],
     // Protected access for liveness sessions
     'protected/liveness-sessions/*': [
       allow.authenticated.to(['read', 'write', 'delete'])
