@@ -1,226 +1,213 @@
 "use client";
 
-import { Footer } from "@/components/layout/Footer";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { LogoInline } from "@/components/ui/Logo";
+import {
+  Shield,
+  Car,
+  FileText,
+  CreditCard,
+  ScrollText,
+  FileCheck,
+  DollarSign,
+  Plane,
+  Smartphone,
+  Clock,
+} from "lucide-react";
 
-export default function LandingPage() {
+export default function Page() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--background)",
-        position: "relative",
-      }}
-    >
-      {/* Theme Toggle */}
-      <div
+    <main className="bg-background text-foreground">
+      {/* Navbar */}
+      <nav className="w-full bg-black/90 backdrop-blur-md shadow-md">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-primary font-bold text-lg">
+              PNG SEVIS PORTAL
+            </span>
+          </div>
+          <div className="hidden md:flex gap-6 items-center">
+            <a href="#home" className="hover:text-primary transition">
+              Home
+            </a>
+            <a href="#features" className="hover:text-primary transition">
+              Services
+            </a>
+            <a href="#help" className="hover:text-primary transition">
+              Help & Support
+            </a>
+            <a href="#about" className="hover:text-primary transition">
+              About
+            </a>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary hover:text-black transition">
+              English
+            </button>
+            <button className="px-4 py-2 rounded-lg bg-primary text-black font-semibold hover:bg-primary/90 transition">
+              Login / Register
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section
+        id="home"
+        className="relative bg-black text-center py-32 flex flex-col items-center justify-center"
         style={{
-          position: "absolute",
-          top: "20px",
-          right: "20px",
-          zIndex: 100,
+          backgroundImage: "url('/hero-bg.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
         }}
       >
-        <ThemeToggle />
-      </div>
-
-      {/* Geometric Background Elements */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background:
-            "radial-gradient(circle at 30% 70%, var(--accent) 0%, transparent 50%)",
-          opacity: 0.3,
-          zIndex: 1,
-        }}
-      ></div>
-      
-      {/* Geometric Shapes */}
-      <div
-        style={{
-          position: "absolute",
-          top: "10%",
-          right: "10%",
-          width: "120px",
-          height: "120px",
-          background: "linear-gradient(45deg, var(--primary), var(--accent))",
-          borderRadius: "50%",
-          opacity: 0.1,
-          zIndex: 1,
-        }}
-      ></div>
-      
-      <div
-        style={{
-          position: "absolute",
-          bottom: "15%",
-          left: "5%",
-          width: "80px",
-          height: "80px",
-          background: "var(--primary)",
-          transform: "rotate(45deg)",
-          opacity: 0.15,
-          zIndex: 1,
-        }}
-      ></div>
-      
-      <div
-        style={{
-          position: "absolute",
-          top: "60%",
-          right: "20%",
-          width: "60px",
-          height: "60px",
-          background: "var(--accent)",
-          clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
-          opacity: 0.2,
-          zIndex: 1,
-        }}
-      ></div>
-      
-      <div
-        style={{
-          position: "absolute",
-          top: "20%",
-          left: "15%",
-          width: "100px",
-          height: "100px",
-          border: "3px solid var(--primary)",
-          borderRadius: "50%",
-          opacity: 0.1,
-          zIndex: 1,
-        }}
-      ></div>
-
-      <div style={{ position: "relative", zIndex: 2 }}>
-        {/* Hero Section */}
-        <section
-          className="hero-section"
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            background: "var(--background)",
-            color: "var(--foreground)",
-            position: "relative",
-            padding: "20px 0",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: "4px",
-              background: "var(--brand-gradient)",
-            }}
-          ></div>
-
-          <div
-            className="hero-container"
-            style={{
-              padding: "60px 20px",
-              maxWidth: "800px",
-              margin: "0 auto",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              textAlign: "center",
-            }}
-          >
-            {/* Left Column - Content */}
-            <div className="hero-content" style={{ textAlign: 'center', width: '100%' }}>
-              <div style={{ marginBottom: "60px" }}>
-                <div style={{ marginBottom: '40px' }}>
-                  <LogoInline size="hero" showText={true} variant="stacked" solidYellow={true} />
-                </div>
-                <p
-                  style={{
-                    fontSize: "clamp(20px, 2.5vw, 28px)",
-                    marginBottom: "16px",
-                    fontWeight: "500",
-                    opacity: 0.95,
-                    color: "var(--foreground)",
-                    textAlign: "center",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Papua New Guinea Digital Government Services
-                </p>
-                <p
-                  style={{
-                    fontSize: "clamp(16px, 2vw, 20px)",
-                    opacity: 0.85,
-                    maxWidth: "600px",
-                    lineHeight: 1.6,
-                    color: "var(--muted-foreground)",
-                    textAlign: "center",
-                    margin: "0 auto",
-                  }}
-                >
-                  Bringing the government closer to the people
-                </p>
-              </div>
-
-              <div
-                className="hero-buttons"
-                style={{
-                  display: "flex",
-                  gap: "16px",
-                  justifyContent: "flex-start",
-                  flexWrap: "wrap",
-                  marginBottom: "40px",
-                  alignItems: "stretch",
-                }}
-              >
-                <a
-                  href="/auth"
-                  style={{
-                    background: "var(--primary)",
-                    color: "var(--background)",
-                    fontSize: "16px",
-                    padding: "14px 28px",
-                    fontWeight: "500",
-                    textDecoration: "none",
-                    borderRadius: "6px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    transition: "all 0.2s ease",
-                    border: "1px solid var(--primary)",
-                    flex: "1 1 250px",
-                    minWidth: "200px",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "var(--primary)";
-                    e.currentTarget.style.borderColor = "var(--primary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "var(--primary)";
-                    e.currentTarget.style.color = "var(--background)";
-                    e.currentTarget.style.borderColor = "var(--primary)";
-                  }}
-                >
-                  Get Started
-                </a>
-              </div>
-            </div>
-
+        <div className="absolute inset-0 bg-black/60"></div>
+        <div className="relative z-10 max-w-3xl mx-auto px-4">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-primary mb-6">
+            PNG SEVIS PORTAL
+          </h1>
+          <p className="text-xl md:text-2xl font-semibold mb-6">
+            Papua New Guinea's Digital Government Gateway
+          </p>
+          <p className="text-lg md:text-xl text-gray-200 mb-8">
+            Bridging tradition with innovation. From our rich cultural heritage
+            to a digital future, access all government services in one secure,
+            modern platform designed for every Papua New Guinean.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button className="px-6 py-3 rounded-lg bg-primary text-black font-bold text-lg hover:bg-primary/90 transition">
+              Access Government Services
+            </button>
+            <button className="px-6 py-3 rounded-lg border border-primary text-primary font-bold text-lg hover:bg-primary hover:text-black transition">
+              Login / Register
+            </button>
           </div>
-        </section>
+          <div className="flex gap-6 justify-center mt-10 text-sm text-gray-300">
+            <span className="flex items-center gap-2">
+              ✅ Government Verified
+            </span>
+            <span className="flex items-center gap-2">🕒 24/7 Available</span>
+            <span className="flex items-center gap-2">⭐ Award Winning</span>
+          </div>
+        </div>
+      </section>
 
+      {/* Featured Services */}
+      <section id="features" className="py-20 bg-background text-center">
+        <div className="mb-12">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-primary" />
+            <span className="px-4 py-1 text-sm rounded-full bg-primary/10 text-primary font-medium">
+              ⭐ Most Popular
+            </span>
+          </div>
+          <h2 className="text-4xl md:text-5xl font-extrabold text-primary mb-4">
+            Featured Services
+          </h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+            Quick access to the most requested government services by Papua New
+            Guineans.
+          </p>
+        </div>
 
-        <Footer />
-      </div>
+        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[
+            {
+              icon: Shield,
+              title: "Police Clearance Certificate",
+              desc: "Get your police clearance certificate online",
+              category: "Justice & Security",
+            },
+            {
+              icon: Car,
+              title: "Driver’s License Renewal",
+              desc: "Renew your driving license online anytime",
+              category: "Transport",
+            },
+            {
+              icon: FileText,
+              title: "Medical Record Number",
+              desc: "Get your official central patient number",
+              category: "Health Services",
+            },
+            {
+              icon: CreditCard,
+              title: "City Pass",
+              desc: "Digital access pass for city services and facilities",
+              category: "City Pass",
+            },
+            {
+              icon: ScrollText,
+              title: "Statement of Results",
+              desc: "Request and verify your official academic records",
+              category: "Civil Registration",
+            },
+            {
+              icon: FileCheck,
+              title: "Passport Application",
+              desc: "Apply for Papua New Guinea passport",
+              category: "Immigration",
+            },
+            {
+              icon: DollarSign,
+              title: "Water Bill Payment",
+              desc: "Pay your water bills online instantly",
+              category: "Utilities & Finance",
+            },
+            {
+              icon: Plane,
+              title: "E-Sipay",
+              desc: "Electronic payment service for government services",
+              category: "E-finance & Payment",
+            },
+            {
+              icon: Smartphone,
+              title: "SIM Registration",
+              desc: "Register your mobile SIM card online",
+              category: "ICT Registration",
+            },
+          ].map((service, i) => (
+            <div
+              key={i}
+              className="bg-muted/10 border border-border rounded-xl p-6 shadow-md hover:shadow-lg hover:border-primary transition duration-300"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <service.icon className="w-7 h-7 text-primary" />
+                <h3 className="text-lg font-semibold text-foreground">
+                  {service.title}
+                </h3>
+              </div>
+              <p className="text-muted-foreground mb-3">{service.desc}</p>
+              <p className="text-sm text-primary/80 font-medium">
+                {service.category}
+              </p>
+            </div>
+          ))}
+        </div>
 
-    </div>
+        <div className="text-center mt-12">
+          <p className="text-muted-foreground text-sm">
+            Need help? Contact our support team for assistance with any
+            government service.
+          </p>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-black text-gray-400 py-8 mt-12">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center">
+          <p>© {new Date().getFullYear()} PNG SEVIS Portal. All rights reserved.</p>
+          <div className="flex gap-6 mt-4 md:mt-0">
+            <a href="#privacy" className="hover:text-primary">
+              Privacy Policy
+            </a>
+            <a href="#terms" className="hover:text-primary">
+              Terms of Service
+            </a>
+            <a href="#contact" className="hover:text-primary">
+              Contact
+            </a>
+          </div>
+        </div>
+      </footer>
+    </main>
   );
 }

@@ -1,6 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Sevis Portal theme - Professional government with yellow accents */
-  --primary: #1F2937; /* Professional dark gray for government feel */
+  --primary: #D4AF37; /* Professional dark gray for government feel */
   --secondary: #F0CA0C; /* Jonquil Yellow as accent */
   --background: #ffffff; /* Clean white */
   --foreground: #1F2937; /* Professional dark gray text */
@@ -567,4 +571,60 @@ a:hover {
   color: var(--muted-foreground);
   font-size: 12px;
   margin: 0;
+}
+
+/* Light mode navbar */
+:root {
+  --navbar-bg: #ffffff; /* solid white */
+  --navbar-text: #000000;
+}
+
+/* Dark mode navbar */
+.dark {
+  --navbar-bg: #0a0a0a; /* solid dark background */
+  --navbar-text: #ffffff;
+}
+
+/* Navbar links */
+.nav-link {
+  color: var(--navbar-text);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: var(--primary);
+}
+
+/* Sign In button */
+.nav-button {
+  padding: 10px 20px;
+  background: var(--primary);
+  color: var(--background);
+  border-radius: 6px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid var(--primary);
+}
+
+.nav-button:hover {
+  background: transparent;
+  color: var(--primary);
+}
+
+
+@keyframes slide {
+  0% { transform: translateX(0%); }
+  30% { transform: translateX(0%); }
+  35% { transform: translateX(-100%); }
+  65% { transform: translateX(-100%); }
+  70% { transform: translateX(-200%); }
+  95% { transform: translateX(-200%); }
+  100% { transform: translateX(0%); }
+}
+
+.animate-slide {
+  animation: slide 15s infinite;
 }

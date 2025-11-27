@@ -1,14 +1,14 @@
 "use client";
 
 import { Amplify } from 'aws-amplify';
-import outputs from '@/amplify_outputs.json';
+import outputs from '../../amplify_outputs.json';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getCurrentUser } from 'aws-amplify/auth';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
-import { CustomAuth } from '@/components/auth/CustomAuth';
-import { SevisPassRegistration } from '@/components/sevispass/SevisPassRegistration';
-import { LogoInline } from '@/components/ui/Logo';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
+import { CustomAuth } from '../../components/auth/CustomAuth';
+import { SevisPassRegistration } from '../../components/sevispass/SevisPassRegistration';
+import { LogoInline } from '../../components/ui/Logo';
 
 // Ensure configuration is applied properly
 if (typeof window !== 'undefined') {
